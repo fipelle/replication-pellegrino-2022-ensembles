@@ -1,22 +1,17 @@
-# ElasticNetVAR.jl
-Selecting time-series hyperparameters with the artificial jackknife: elastic-net VAR.
-
 ## Description
-This repository contains code related to “[Selecting time-series hyperparameters with the artificial jackknife](https://arxiv.org/abs/2002.04697)”.
+This repository contains code related to “[Factor-augmented tree ensembles](https://arxiv.org/abs/2111.14000)”.
 
-This article proposes a generalisation of the delete-*d* jackknife to solve hyperparameter selection problems for time series. This novel technique is compatible with dependent data since it substitutes the jackknife removal step with a fictitious deletion, wherein observed datapoints are replaced with artificial missing values. In order to emphasise this point, I called this methodology artificial delete-*d* jackknife. As an illustration, it is used to regulate vector autoregressions with an elastic-net penalty on the coefficients.
-
-<img src="./img/heading.svg">
+This article proposes an extension for standard time-series regression tree modelling to handle predictors that show irregularities such as missing observations, periodic patterns in the form of seasonality and cycles, and non-stationary trends. In doing so, this approach permits also to enrich the information set used in tree-based autoregressions via unobserved components. Furthermore, this manuscript also illustrates a relevant approach to control over-fitting based on ensemble learning and recent developments in the jackknife literature. This is strongly beneficial when the number of observed time periods is small and advantageous compared to benchmark resampling methods. Empirical results show the benefits of predicting equity squared returns as a function of their own past and a set of macroeconomic data via factor-augmented tree ensembles, with respect to simpler benchmarks. As a by-product, this approach allows to study the real-time importance of economic news on equity volatility.
 
 ## Citation
 If you use this code or build upon it, please use the following (bibtex) citation:
 ```bibtex
-@misc{pellegrino2020ajk,
-    title={Selecting time-series hyperparameters with the artificial jackknife},
-    author={Filippo Pellegrino},
-    year={2020},
-    eprint={2002.04697},
-    archivePrefix={arXiv},
-    primaryClass={stat.ME}
+@misc{pellegrino2021factoraugmented,
+      title={Factor-augmented tree ensembles}, 
+      author={Filippo Pellegrino},
+      year={2021},
+      eprint={2111.14000},
+      archivePrefix={arXiv},
+      primaryClass={stat.ML}
 }
 ```
