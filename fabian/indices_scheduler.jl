@@ -2,13 +2,13 @@ function get_qsub_content(equity_index_id::Int64, subsample::Float64, subsamplin
     
     subsample_str = replace("$(ifelse(isnan(subsample), "default", subsample))", "."=>"_");
 
-    qsub_log_output = "\$HOME/Documents/private_varma/ch2/fabian/logs/$(subsampling_mnemonic)/\$JOB_NAME.\$JOB_ID.output";
+    qsub_log_output = "\$HOME/Documents/replication-pellegrino-2022-ensembles/fabian/logs/$(subsampling_mnemonic)/\$JOB_NAME.\$JOB_ID.output";
     qsub_name = "m$(subsampling_function_id)_ind_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(subsample_str)";
     qsub_command = "julia finance_forecasts.jl false $(equity_index_id) $(include_factor_augmentation) $(use_refined_BC) $(subsample) $(subsampling_function_id) \"./BC_output\"";
 
     qsub_content = """
     #!/bin/bash -login
-    #\$ -wd \$HOME/Documents/private_varma/ch2
+    #\$ -wd \$HOME/Documents/replication-pellegrino-2022-ensembles
     #\$ -V
     #\$ -j y
     #\$ -o $(qsub_log_output)

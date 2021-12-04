@@ -1,8 +1,8 @@
 #!/bin/bash -login
-#$ -wd $HOME/Documents/private_varma/ch2
+#$ -wd $HOME/Documents/replication-pellegrino-2022-ensembles
 #$ -V
 #$ -j y
-#$ -o $HOME/Documents/private_varma/ch2/fabian/$JOB_NAME.$JOB_ID.output
+#$ -o $HOME/Documents/replication-pellegrino-2022-ensembles/fabian/$JOB_NAME.$JOB_ID.output
 #$ -N select_BC_and_EP
 #$ -M f.pellegrino1@lse.ac.uk
 #$ -m bea
