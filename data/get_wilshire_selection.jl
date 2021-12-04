@@ -1,4 +1,4 @@
-using CSV, DataFrames, Dates, TSAnalysis;
+using CSV, DataFrames, Dates, MessyTimeSeries;
 using FredData: get_data, Fred;
 
 """
@@ -42,18 +42,10 @@ function get_wilshire_selection(fred_tickers::Array{String,1}, observation_start
     for i=1:length(fred_tickers)
         rename!(df_r2, Dict(Symbol("$(fred_tickers[i])_pch") => Symbol("$(fred_tickers[i])_r2")));
     end
-    
-    # Compute sign
-    df_sign = df[!, 2:length(fred_tickers)+1].>0;
-    df_sign = convert.(Float64, df_sign);
-    for i=1:length(fred_tickers)
-        rename!(df_sign, Dict(Symbol("$(fred_tickers[i])_pch") => Symbol("$(fred_tickers[i])_sign")));
-    end
 
     # Append squared MoM returns and sign, then re-order
-    df = [df df_r2 df_sign];
-    select!(df, vcat(1, collect(12:31), collect(2:11)));
-    
+    df = [df df_r2];
+
     # Return output
     return df;
 end

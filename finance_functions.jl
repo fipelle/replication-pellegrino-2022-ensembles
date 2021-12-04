@@ -110,7 +110,7 @@ get_target_and_predictors_forecasting(current_business_cycle_matrix::FloatMatrix
     get_selection_samples(macro_data::JMatrix{Float64}, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
     get_selection_samples(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
 
-Return selection samples. `macro_data` and `equity_index` are in the format required by TSAnalysis.jl.
+Return selection samples. `macro_data` and `equity_index` are in the format required by MessyTimeSeries.jl.
 """
 function get_selection_samples(macro_data::JMatrix{Float64}, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
 

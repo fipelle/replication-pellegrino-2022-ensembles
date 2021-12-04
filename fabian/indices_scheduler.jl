@@ -29,7 +29,7 @@ end
 for subsampling_method in [0,3,4]
     
     # Loop over the equity indices
-    for equity_index_id=1:10
+    for equity_index_id=1:20
         
         subsampling_function_id = copy(subsampling_method);
 
@@ -61,7 +61,7 @@ for subsampling_method in [0,3,4]
         end
 
         # With and without ADL structure / derived BC features
-        for (include_factor_augmentation, use_refined_BC) in [(false, false); (true, true)] #(true, false); 
+        for (include_factor_augmentation, use_refined_BC) in [(false, false); (true, true)]
 
             # Get qsub content
             qsub_content = get_qsub_content(equity_index_id, subsample, subsampling_mnemonic, subsampling_function_id, include_factor_augmentation, use_refined_BC)

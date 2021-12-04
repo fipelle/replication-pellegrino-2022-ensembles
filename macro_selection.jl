@@ -1,10 +1,9 @@
 # Libraries
 using Distributed;
-@everywhere include("./../src/MessyTimeSeriesOptim.jl");
-@everywhere using Main.MessyTimeSeriesOptim;
+@everywhere using MessyTimeSeriesOptim;
 @everywhere include("./get_real_time_datasets.jl");
 using CSV, FileIO, JLD;
-using Random, LinearAlgebra, TSAnalysis;
+using Random, LinearAlgebra, MessyTimeSeries;
 include("./macro_functions.jl");
 
 #=

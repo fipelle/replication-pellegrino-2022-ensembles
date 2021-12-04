@@ -1,11 +1,10 @@
 # Libraries
 using Distributed;
-@everywhere include("./../src/MessyTimeSeriesOptim.jl");
 @everywhere include("./TimeSeriesEnsembles.jl");
-@everywhere using Main.MessyTimeSeriesOptim;
+@everywhere using MessyTimeSeriesOptim;
 @everywhere using Main.TimeSeriesEnsembles;
 using CSV, DataFrames, Dates, FileIO, JLD, Logging;
-using LinearAlgebra, Statistics, TSAnalysis;
+using LinearAlgebra, Statistics, MessyTimeSeries;
 include("./macro_functions.jl");
 include("./finance_functions.jl");
 
