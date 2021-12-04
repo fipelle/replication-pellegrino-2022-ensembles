@@ -39,11 +39,13 @@ elseif subsampling_function_id == 1
     subsampling_function = moving_block_bootstrap;
     subsampling_mnemonic = "block_bootstrap";
     tree_subsampling_method = 2;
+    @warning("Untested subsampling_function_id!")
 
 elseif subsampling_function_id == 2
     subsampling_function = block_jackknife;
     subsampling_mnemonic = "block_jackknife";
     tree_subsampling_method = 2;
+    @warning("Untested subsampling_function_id!")
 
 elseif subsampling_function_id == 3
     subsampling_function = artificial_jackknife;
