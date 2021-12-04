@@ -1,28 +1,25 @@
-function get_qsub_content(equity_index_id::Int64, subsample::Float64, subsampling_mnemonic::String, subsampling_function_id::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
+function get_slurm_content(equity_index_id::Int64, subsample::Float64, subsampling_mnemonic::String, subsampling_function_id::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
     
     subsample_str = replace("$(ifelse(isnan(subsample), "default", subsample))", "."=>"_");
+    job_name = "m$(subsampling_function_id)_ind_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(subsample_str)";
+    slurm_logs_folder = "./logs/$(subsampling_mnemonic)"
+    julia_specs = "julia finance_forecasts.jl false $(equity_index_id) $(include_factor_augmentation) $(use_refined_BC) $(subsample) $(subsampling_function_id) \"./BC_output\"";
 
-    qsub_log_output = "\$HOME/Documents/replication-pellegrino-2022-ensembles/fabian/logs/$(subsampling_mnemonic)/\$JOB_NAME.\$JOB_ID.output";
-    qsub_name = "m$(subsampling_function_id)_ind_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(subsample_str)";
-    qsub_command = "julia finance_forecasts.jl false $(equity_index_id) $(include_factor_augmentation) $(use_refined_BC) $(subsample) $(subsampling_function_id) \"./BC_output\"";
+    slurm_content = """
+    #!/bin/bash
+    
+    #SBATCH --nodes=1
+    #SBATCH --ntasks=1
+    #SBATCH --partition=m64c512g
+    #SBATCH --job-name=$(job_name)
+    #SBATCH --error=$(slurm_logs_folder)/%x_%N_%j.err
+    #SBATCH --output=$(slurm_logs_folder)/%x_%N_%j.out
+    #SBATCH --chdir="../"
+    
+    module add apps/julia
+    $(julia_specs)""";
 
-    qsub_content = """
-    #!/bin/bash -login
-    #\$ -wd \$HOME/Documents/replication-pellegrino-2022-ensembles
-    #\$ -V
-    #\$ -j y
-    #\$ -o $(qsub_log_output)
-    #\$ -N $(qsub_name)
-    #\$ -M f.pellegrino1@lse.ac.uk
-    #\$ -m bea
-    #\$ -l h_rt=144:0:0
-    #\$ -l h_vmem=64G
-    #\$ -pe smp 1
-
-    module load apps/julia/1.6.2
-    $(qsub_command)""";
-
-    return qsub_content;
+    return slurm_content;
 end
 
 # Loop over the subsampling methods
@@ -63,22 +60,22 @@ for subsampling_method in [0,3,4]
         # With and without ADL structure / derived BC features
         for (include_factor_augmentation, use_refined_BC) in [(false, false); (true, true)]
 
-            # Get qsub content
-            qsub_content = get_qsub_content(equity_index_id, subsample, subsampling_mnemonic, subsampling_function_id, include_factor_augmentation, use_refined_BC)
+            # Get slurm content
+            slurm_content = get_slurm_content(equity_index_id, subsample, subsampling_mnemonic, subsampling_function_id, include_factor_augmentation, use_refined_BC)
 
-            # Setup qsub and backup
-            open("index.qsub", "w") do io
-                write(io, qsub_content)
+            # Setup slurm and backup
+            open("index.sl", "w") do io
+                write(io, slurm_content)
             end;
 
             subsample_str = replace("$(ifelse(isnan(subsample), "default", subsample))", "."=>"_");
             
-            open("./logs/$(subsampling_mnemonic)/ind_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(subsample_str).qsub", "w") do io
-                write(io, qsub_content)
+            open("./logs/$(subsampling_mnemonic)/ind_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(subsample_str).sl", "w") do io
+                write(io, slurm_content)
             end;
 
-            # Run qsub
-            run(`qsub index.qsub`);
+            # Run sbatch
+            run(`sbatch index.sl`);
 
             # Wait before starting the next iteration
             sleep(2.5);
