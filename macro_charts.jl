@@ -1,10 +1,9 @@
 # Libraries
 using DataFrames, Dates, FileIO, JLD;
-using Contour, DecisionTree, LinearAlgebra, Random, StableRNGs, TSAnalysis;
+using Contour, DecisionTree, LinearAlgebra, Random, StableRNGs, MessyTimeSeries;
 using PGFPlotsX, LaTeXStrings;
 include("./macro_functions.jl");
-include("./../src/MessyTimeSeriesOptim.jl");
-using Main.MessyTimeSeriesOptim;
+using MessyTimeSeriesOptim;
 
 # Manual input
 compute_ep_cycle = false;

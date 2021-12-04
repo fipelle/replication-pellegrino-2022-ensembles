@@ -1,10 +1,9 @@
 # Libraries
 using Distributed;
-@everywhere include("./../src/MessyTimeSeriesOptim.jl");
-@everywhere using Main.MessyTimeSeriesOptim;
+@everywhere using MessyTimeSeriesOptim;
 @everywhere include("./get_real_time_datasets.jl");
 using CSV, FileIO, JLD;
-using Random, LinearAlgebra, TSAnalysis;
+using Random, LinearAlgebra, MessyTimeSeries;
 include("./macro_functions.jl");
 
 #=
@@ -122,7 +121,7 @@ selection_sample = data_vintages[1][!,2:end] |> JMatrix{Float64};
 selection_sample = permutedims(selection_sample);
 
 # Validation inputs: common for all err_types
-gamma_bounds = ([12, 12], [0.01, 2.50], [0.0, 1.0], [1.0, 2.0]);
+gamma_bounds = ([12, 12], [0.01, 2.50], [0.0, 1.0], [1.0, 1.2]);
 grid_prerun = HyperGrid(gamma_bounds..., 1);
 grid = HyperGrid(gamma_bounds..., 1000);
 weights = zeros(n_series);

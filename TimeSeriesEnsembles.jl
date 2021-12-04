@@ -2,7 +2,7 @@ __precompile__()
 
 module TimeSeriesEnsembles
 
-    using DecisionTree, Random, StableRNGs, TSAnalysis;
+    using DecisionTree, Random, StableRNGs, MessyTimeSeries;
 
     """
         compute_aggregator_subsamples!(target_subsamples::Vector{FloatVector}, predictors_subsamples::Vector{FloatMatrix}, target::FloatVector, predictors::FloatMatrix, rng::AbstractRNG, n_bootstrap_samples::Int64, extra_bootstrap::Bool)
