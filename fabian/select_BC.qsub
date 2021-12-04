@@ -1,0 +1,14 @@
+#!/bin/bash -login
+#$ -wd $HOME/Documents/private_varma/ch2
+#$ -V
+#$ -j y
+#$ -o $HOME/Documents/private_varma/ch2/fabian/$JOB_NAME.$JOB_ID.output
+#$ -N select_BC
+#$ -M f.pellegrino1@lse.ac.uk
+#$ -m bea
+#$ -l h_rt=144:0:0
+#$ -l h_vmem=8G
+#$ -pe smp 20
+
+module load apps/julia/1.6.2
+julia -p20 macro_selection.jl false 4 "./BC_output"
