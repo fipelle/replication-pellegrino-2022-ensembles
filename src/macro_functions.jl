@@ -36,11 +36,11 @@ function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, 
 end
 
 """
-    get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple)
+    get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}})
 
 Get trend-cycle model structure.
 """
-function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple)
+function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}})
 
     # Standardise data
     std_diff_data = std_skipmissing(diff(data, dims=2));
@@ -48,33 +48,8 @@ function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hy
 
     # Build estim
     estim = DFMSettings(zscored_data, Int64(optimal_hyperparams[1]), model_args..., optimal_hyperparams[2:end]...; model_kwargs...);
+    MessyTimeSeriesOptim.rescale_estim_params!(coordinates_params_rescaling, estim, std_diff_data);
 
     # Return output
     return estim, std_diff_data;
-end
-
-"""
-    compute_business_cycle(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple)
-
-Compute business cycle from the optimal DFM parametrisation.
-"""
-function compute_business_cycle(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple)
-
-    # Get trend-cycle model structure
-    estim, std_diff_data = get_tc_structure(data, optimal_hyperparams, model_args, model_kwargs);
-
-    # Estimate
-    sspace = ecm(estim);
-
-    # Run Kalman routines
-    status = kfilter_full_sample(sspace);
-    X_sm, P_sm, X0_sm, P0_sm = ksmoother(sspace, status);
-
-    # Retrieve business cycle
-    business_cycle_position = findlast(sspace.B[1,:] .== 1);
-    business_cycle = [X_sm[i][business_cycle_position] for i=1:length(X_sm)] .* std_diff_data[1];
-    business_cycle = permutedims(business_cycle);
-
-    # Return output
-    return sspace, status, business_cycle, business_cycle_position, std_diff_data;
 end

@@ -38,7 +38,7 @@ optimal_hyperparams = candidates[:, argmin(errors)];
 
 # Estimate DFM
 model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices);
-estim, std_diff_data = get_tc_structure(data, optimal_hyperparams, model_args, model_kwargs);
+estim, std_diff_data = get_tc_structure(data, optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
 
 # Run Kalman routines
 sspace = ecm(estim, output_sspace_data = full_data ./ std_diff_data);
