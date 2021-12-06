@@ -39,13 +39,13 @@ elseif subsampling_function_id == 1
     subsampling_function = moving_block_bootstrap;
     subsampling_mnemonic = "block_bootstrap";
     tree_subsampling_method = 2;
-    @warning("Untested subsampling_function_id!")
+    @warn("Untested subsampling_function_id!")
 
 elseif subsampling_function_id == 2
     subsampling_function = block_jackknife;
     subsampling_mnemonic = "block_jackknife";
     tree_subsampling_method = 2;
-    @warning("Untested subsampling_function_id!")
+    @warn("Untested subsampling_function_id!")
 
 elseif subsampling_function_id == 3
     subsampling_function = artificial_jackknife;
@@ -135,11 +135,11 @@ validation_sample_length = size(first_data_vintage, 1) - estimation_sample_lengt
 
 # Pair bootstrap samples - post ssm
 if tree_subsampling_method == 1
-    ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples_bootstrap(first_data_vintage, equity_index, estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC);
+    ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples_bootstrap(first_data_vintage, equity_index, estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
 
 # Custom subsampling methods - pre ssm (i.e., block bootstrap, block jackknife, artificial delete-d jackknife)
 elseif tree_subsampling_method == 2
-    ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples_custom(io, subsampling_function, subsample, first_data_vintage, equity_index, estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC);
+    ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples_custom(io, subsampling_function, subsample, first_data_vintage, equity_index, estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
 end
 
 # Compute validation error
@@ -229,7 +229,7 @@ save("$(log_folder_path)/$(subsampling_mnemonic)/equity_index_$(equity_index_id)
          "ecm_kalman_settings" => ecm_kalman_settings,
          "ecm_std_diff_data" => ecm_std_diff_data,
          "business_cycle_position" => business_cycle_position,
-         "trees" => trees,
+         #"trees" => trees, # comment out if you want to store the trees as well -> very large jld output files
          "optimal_hyperparams" => optimal_hyperparams, 
          "errors_validation" => errors_validation, 
          "grid_min_samples_leaf" => grid_min_samples_leaf, 

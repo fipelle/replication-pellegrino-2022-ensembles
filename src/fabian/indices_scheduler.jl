@@ -17,6 +17,7 @@ function get_qsub_content(equity_index_id::Int64, subsample::Float64, subsamplin
     #\$ -m bea
     #\$ -l h_rt=144:0:0
     #\$ -l h_vmem=64G
+    #\$ -l h='(vnode01|vnode02|vnode03|vnode06|vnode08|vnode13)'
     #\$ -pe smp 1
 
     module load apps/julia/1.6.2

@@ -7,7 +7,7 @@
 #$ -M f.pellegrino1@lse.ac.uk
 #$ -m bea
 #$ -l h_rt=144:0:0
-#$ -l h_vmem=8G
+#$ -l h_vmem=32G
 #$ -pe smp 20
 
 module load apps/julia/1.6.2

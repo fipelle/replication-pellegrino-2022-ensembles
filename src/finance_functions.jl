@@ -107,12 +107,12 @@ end
 get_target_and_predictors_forecasting(current_business_cycle_matrix::FloatMatrix, current_equity_index::FloatMatrix, next_equity_index_obs::Float64, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool) = get_target_and_predictors_forecasting(current_business_cycle_matrix[:, end], current_equity_index, next_equity_index_obs, lags, include_factor_augmentation, use_refined_BC);
 
 """
-    get_selection_samples(macro_data::JMatrix{Float64}, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
-    get_selection_samples(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
+    get_selection_samples(macro_data::JMatrix{Float64}, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
+    get_selection_samples(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
 
 Return selection samples. `macro_data` and `equity_index` are in the format required by MessyTimeSeries.jl.
 """
-function get_selection_samples(macro_data::JMatrix{Float64}, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
+function get_selection_samples(macro_data::JMatrix{Float64}, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
 
     # Initial settings
     lags = Int64(optimal_hyperparams[1]);
@@ -124,10 +124,10 @@ function get_selection_samples(macro_data::JMatrix{Float64}, equity_index::Float
     validation_samples_predictors = Vector{FloatVector}();
 
     # Get trend-cycle model structure (estimated with data up to t0 - included)
-    estim, std_diff_data = get_tc_structure(macro_data[:, 1:t0], optimal_hyperparams, model_args, model_kwargs);
+    estim, std_diff_data = get_tc_structure(macro_data[:, 1:t0], optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
 
     # Get trend-cycle model structure (estimated with full data)
-    estim_full, std_diff_data_full = get_tc_structure(macro_data, optimal_hyperparams, model_args, model_kwargs);
+    estim_full, std_diff_data_full = get_tc_structure(macro_data, optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
 
     # Estimate the trend-cycle model with (estimated with data up to t0 - included)
     sspace = ecm(estim, output_sspace_data=macro_data./std_diff_data);
@@ -195,25 +195,25 @@ function get_selection_samples(macro_data::JMatrix{Float64}, equity_index::Float
     return sspace_full, std_diff_data_full, business_cycle_position, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors;
 end
 
-function get_selection_samples(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
+function get_selection_samples(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
 
     # Extract data from `macro_vintage`
     macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
     macro_data = permutedims(macro_data);
 
     # Return selection samples
-    return get_selection_samples(macro_data, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC);
+    return get_selection_samples(macro_data, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
 end
 
 """
-    get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
+    get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
 
 Return selection samples compatible with tree aggregators based on pair bootstrap.
 """
-function get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
+function get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
     
     # Train and validation samples
-    ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples(macro_vintage, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC);
+    ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples(macro_vintage, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
 
     # Estimation and selection samples
     training_samples_target = estimation_samples_target[1];
@@ -226,11 +226,11 @@ function get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equit
 end
 
 """
-    get_selection_samples_custom(io::IOStream, subsampling_function::Function, subsample::Float64, macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
+    get_selection_samples_custom(io::IOStream, subsampling_function::Function, subsample::Float64, macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
 
 Return selection samples compatible with tree aggregators based on custom subsampling methods.
 """
-function get_selection_samples_custom(io::IOStream, subsampling_function::Function, subsample::Float64, macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
+function get_selection_samples_custom(io::IOStream, subsampling_function::Function, subsample::Float64, macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
 
     # Build macro_finance_data for estimation
     macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
@@ -285,7 +285,7 @@ function get_selection_samples_custom(io::IOStream, subsampling_function::Functi
         current_equity_index = current_equity_index |> FloatVector;
         
         # Update training and selection samples
-        sspace_full, std_diff_data_full, _, estimation_samples_target, estimation_samples_predictors, _, _ = get_selection_samples(current_macro_data, current_equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC);
+        sspace_full, std_diff_data_full, _, estimation_samples_target, estimation_samples_predictors, _, _ = get_selection_samples(current_macro_data, current_equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
         push!(ecm_kalman_settings, sspace_full);
         push!(ecm_std_diff_data, std_diff_data_full);
         push!(training_samples_target, estimation_samples_target[1]);
@@ -295,7 +295,7 @@ function get_selection_samples_custom(io::IOStream, subsampling_function::Functi
     end
 
     # Train and validation samples
-    _, _, business_cycle_position, _, _, validation_samples_target, validation_samples_predictors = get_selection_samples(first_data_vintage, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC);
+    _, _, business_cycle_position, _, _, validation_samples_target, validation_samples_predictors = get_selection_samples(first_data_vintage, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
 
     # Return output
     return ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors;
