@@ -27,10 +27,10 @@ function get_qsub_content(equity_index_id::Int64, subsample::Float64, subsamplin
 end
 
 # Loop over the subsampling methods
-for subsampling_method in [0,3,4]
+for subsampling_method in [3,4]
     
     # Loop over the equity indices
-    for equity_index_id=1:20
+    for equity_index_id=11:20
         
         subsampling_function_id = copy(subsampling_method);
 
