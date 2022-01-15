@@ -1,18 +1,33 @@
 using Dates, DataFrames, DecisionTree, StableRNGs, Statistics, JLD, MessyTimeSeries;
 
-function retrieve_rel_errors(output_folder_name::String, index_id::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
-    block_bootstrap = read(jldopen("./$(output_folder_name)/block_bootstrap/equity_index_$(index_id)_$(include_factor_augmentation)_$(use_refined_BC)_0_8.jld")["errors_oos"])
-    block_jackknife = read(jldopen("./$(output_folder_name)/block_jackknife/equity_index_$(index_id)_$(include_factor_augmentation)_$(use_refined_BC)_0_2.jld")["errors_oos"])
-    pair_bootstrap = read(jldopen("./$(output_folder_name)/pair_bootstrap/equity_index_$(index_id)_$(include_factor_augmentation)_$(use_refined_BC)_default.jld")["errors_oos"])
-    artificial_jackknife_opt = read(jldopen("./$(output_folder_name)/artificial_jackknife/equity_index_$(index_id)_$(include_factor_augmentation)_$(use_refined_BC)_default.jld")["errors_oos"])
-    artificial_jackknife_0_5 = read(jldopen("./$(output_folder_name)/artificial_jackknife/equity_index_$(index_id)_$(include_factor_augmentation)_$(use_refined_BC)_0_5.jld")["errors_oos"])
-    random_walk_benchmark = read(jldopen("./$(output_folder_name)/artificial_jackknife/equity_index_$(index_id)_$(include_factor_augmentation)_$(use_refined_BC)_0_5.jld")["errors_oos_rw"])
+function retrieve_rel_errors(output_folder_name::String, index_id::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool; exclude_2020::Bool=true)
+    
+    # Models
+    pair_bootstrap = read(jldopen("./$(output_folder_name)/pair_bootstrap/equity_index_$(index_id)_$(include_factor_augmentation)_$(use_refined_BC)_default.jld")["forecast_array"])
+    artificial_jackknife = read(jldopen("./$(output_folder_name)/artificial_jackknife/equity_index_$(index_id)_$(include_factor_augmentation)_$(use_refined_BC)_default.jld")["forecast_array"])
+    
+    # Outturn
+    outturn = read(jldopen("./$(output_folder_name)/artificial_jackknife/equity_index_$(index_id)_$(include_factor_augmentation)_$(use_refined_BC)_default.jld")["outturn_array"])
 
-    return mean([block_bootstrap block_jackknife pair_bootstrap artificial_jackknife_opt artificial_jackknife_0_5][1:end-24, :], dims = 1) ./ mean(random_walk_benchmark[1:end-24])
+    # Squared errors
+    se_pair_bootstrap = (pair_bootstrap-outturn).^2;
+    se_artificial_jackknife = (artificial_jackknife-outturn).^2;
+    se_random_walk = (outturn).^2;
+
+    # Return forecast error
+    if exclude_2020
+        return mean([se_pair_bootstrap se_artificial_jackknife][1:end-55, :], dims = 1) ./ mean(se_random_walk[1:end-55]), se_pair_bootstrap[1:end-55], se_artificial_jackknife[1:end-55];
+    else
+        return mean([se_pair_bootstrap se_artificial_jackknife], dims = 1) ./ mean(se_random_walk), se_pair_bootstrap, se_artificial_jackknife;
+    end
 end
 
 output_folder_name = "BC_output";
 
-baseline_table = vcat([retrieve_rel_errors(output_folder_name, i, false, false) for i = 1:10]...);
-intermediate_factor_augmented_table = vcat([retrieve_rel_errors(output_folder_name, i, true, false) for i = 1:10]...);
-factor_augmented_table = vcat([retrieve_rel_errors(output_folder_name, i, true, true) for i = 1:10]...);
+baseline = [retrieve_rel_errors(output_folder_name, i, false, false, exclude_2020=false) for i = 11:20];
+#factor_base = [retrieve_rel_errors(output_folder_name, i, true, false, exclude_2020=false) for i = 11:20];
+factor_refined = [retrieve_rel_errors(output_folder_name, i, true, true, exclude_2020=false) for i = 11:20];
+
+baseline_table = vcat([baseline[i][1] for i=1:length(baseline)]...);
+#factor_base_table = vcat([factor_base[i][1] for i=1:length(factor_base)]...);
+factor_refined_table = vcat([factor_refined[i][1] for i=1:length(factor_refined)]...);
