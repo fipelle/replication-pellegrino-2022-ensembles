@@ -114,4 +114,4 @@ fig = @pgf TikzPicture(GroupPlot(
     raw"\node at ($(group c2r3) + (0,-3.25cm)$) {\ref{grouplegend}};",
 );
 
-pgfsave("./img/trend_cycle_$(compute_ep_cycle)_$(pre_covid).pdf", fig);
+pgfsave("./img/cycles_$(compute_ep_cycle)_$(pre_covid).pdf", fig);

@@ -93,13 +93,9 @@ for i=1:9
             xmax=ref_dates_grid[end],
             legend_style=legend_style_content,
         },
-
-        Plot({ybar_stacked, color=c1, fill=c1}, Table([ref_dates_grid, smoothed_bc_cycle[i,:]])),
-        ifelse(compute_ep_cycle, Plot({ybar_stacked, color=c2, fill=c2}, Table([ref_dates_grid, smoothed_ep_cycle[i,:]])), {}),
-        Plot({ybar_stacked, color=c3, fill=c3}, Table([ref_dates_grid, smoothed_idio_cycles[i,:]])),
-        {},
-        Plot({no_marks, style={"densely dotted", "thick"}, color="black"}, Table([ref_dates_grid, smoothed_bc_cycle[i,:]+smoothed_ep_cycle[i,:]+smoothed_idio_cycles[i,:]])),
-        ifelse(i==1, ifelse(compute_ep_cycle, Legend("Business cycle", "Energy price cycle", "Idiosyncratic cycle", "Total cycle"), Legend("Business cycle", "Idiosyncratic cycle", "Total cycle")), {}),
+        Plot({no_marks, style={"thick"}, color="black"}, Table([ref_dates_grid, iis_data[i,:]])),
+        Plot({no_marks, style={"thick"}, color="blue"}, Table([ref_dates_grid, smoothed_trends[i,:]])),
+        ifelse(i==1, Legend("Data", "Trend"), {});
     );
 end
 
@@ -114,4 +110,4 @@ fig = @pgf TikzPicture(GroupPlot(
     raw"\node at ($(group c2r3) + (0,-3.25cm)$) {\ref{grouplegend}};",
 );
 
-pgfsave("./img/trend_cycle_$(compute_ep_cycle)_$(pre_covid).pdf", fig);
+pgfsave("./img/trends_$(compute_ep_cycle)_$(pre_covid).pdf", fig);
