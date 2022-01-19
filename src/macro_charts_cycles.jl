@@ -21,12 +21,12 @@ end
 data_vintages = read(macro_output["data_vintages"]);
 
 if pre_covid
-    full_data = data_vintages[end-58][!, 2:end] |> JMatrix{Float64}; # 2019-12-31
+    iis_data = data_vintages[end-58][!, 2:end] |> JMatrix{Float64}; # 2019-12-31
 else
-    full_data = data_vintages[end][!, 2:end] |> JMatrix{Float64}; # 2020-12-31
+    iis_data = data_vintages[end][!, 2:end] |> JMatrix{Float64}; # 2020-12-31
 end
 
-full_data = permutedims(full_data);
+iis_data = permutedims(iis_data);
 
 # Optimal hyperparameters
 candidates = read(macro_output["candidates"]);
@@ -35,10 +35,10 @@ optimal_hyperparams = candidates[:, argmin(errors)];
 
 # Estimate DFM
 model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices);
-estim, std_diff_data = get_tc_structure(full_data, optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
+estim, std_diff_data = get_tc_structure(iis_data, optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
 
 # Run Kalman routines
-sspace = ecm(estim, output_sspace_data = full_data ./ std_diff_data);
+sspace = ecm(estim, output_sspace_data = iis_data ./ std_diff_data);
 status = kfilter_full_sample(sspace);
 X_sm, P_sm, X0_sm, P0_sm = ksmoother(sspace, status);
 smoothed_states = hcat([X_sm[i] for i=1:length(X_sm)]...);
