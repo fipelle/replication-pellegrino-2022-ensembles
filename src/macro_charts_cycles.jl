@@ -7,7 +7,6 @@ using MessyTimeSeriesOptim;
 
 # Manual input
 pre_covid = true;
-in_sample_chart = true;
 compute_ep_cycle = false;
 n_series = 9;
 n_cycles = 7; # shortcut to denote the variable that identifies the energy cycle
@@ -21,19 +20,13 @@ else
 end
 data_vintages = read(macro_output["data_vintages"]);
 
-data = data_vintages[1][!, 2:end] |> JMatrix{Float64};
-
 if pre_covid
     full_data = data_vintages[end-58][!, 2:end] |> JMatrix{Float64}; # 2019-12-31
 else
     full_data = data_vintages[end][!, 2:end] |> JMatrix{Float64}; # 2020-12-31
 end
 
-data = permutedims(data);
 full_data = permutedims(full_data);
-if in_sample_chart
-    data = copy(full_data);
-end
 
 # Optimal hyperparameters
 candidates = read(macro_output["candidates"]);
@@ -42,7 +35,7 @@ optimal_hyperparams = candidates[:, argmin(errors)];
 
 # Estimate DFM
 model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices);
-estim, std_diff_data = get_tc_structure(data, optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
+estim, std_diff_data = get_tc_structure(full_data, optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
 
 # Run Kalman routines
 sspace = ecm(estim, output_sspace_data = full_data ./ std_diff_data);
@@ -121,4 +114,4 @@ fig = @pgf TikzPicture(GroupPlot(
     raw"\node at ($(group c2r3) + (0,-3.25cm)$) {\ref{grouplegend}};",
 );
 
-pgfsave("./img/trend_cycle_$(compute_ep_cycle)_$(pre_covid)_$(in_sample_chart).pdf", fig);
+pgfsave("./img/trend_cycle_$(compute_ep_cycle)_$(pre_covid).pdf", fig);
