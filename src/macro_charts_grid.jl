@@ -59,11 +59,11 @@ for i=1:2
     gpr[i] = Array{Any,1}(undef, 2);
 end
 
-axs_titles = ["BC", "BC and EP"];
+axs_titles = ["Baseline model", "Extended model"];
 
 # Interpolated grid
-x_grid = range(0.001, stop=1, length=100);
-y_grid = range(0.0, stop=20, length=100);
+x_grid = range(0.001, stop=1, length=50);
+y_grid = range(0.0, stop=20, length=50);
 
 # Loop over each model
 for i in 1:2
