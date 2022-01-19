@@ -17,7 +17,7 @@ function get_qsub_content(equity_index_id::Int64, subsample::Float64, subsamplin
     #\$ -m bea
     #\$ -l h_rt=144:0:0
     #\$ -l h_vmem=64G
-    #\$ -l h='(vnode01|vnode02|vnode03|vnode06|vnode08|vnode13)'
+    #\$ -l h='(vnode01|vnode02|vnode03|vnode06|vnode08|vnode13|vnode16)'
     #\$ -pe smp 1
 
     module load apps/julia/1.6.2
@@ -27,7 +27,7 @@ function get_qsub_content(equity_index_id::Int64, subsample::Float64, subsamplin
 end
 
 # Loop over the subsampling methods
-for subsampling_method in [3,4]
+for subsampling_method in [3]
     
     # Loop over the equity indices
     for equity_index_id=11:20
@@ -62,7 +62,7 @@ for subsampling_method in [3,4]
         end
 
         # With and without ADL structure / derived BC features
-        for (include_factor_augmentation, use_refined_BC) in [(false, false); (true, true)]
+        for (include_factor_augmentation, use_refined_BC) in [(true, false)]
 
             # Get qsub content
             qsub_content = get_qsub_content(equity_index_id, subsample, subsampling_mnemonic, subsampling_function_id, include_factor_augmentation, use_refined_BC)
