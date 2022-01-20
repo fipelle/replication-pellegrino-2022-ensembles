@@ -5,12 +5,29 @@ using PGFPlotsX, LaTeXStrings;
 include("./macro_functions.jl");
 using MessyTimeSeriesOptim;
 
+# PGFPlotsX options
+push!(PGFPlotsX.CUSTOM_PREAMBLE, 
+        raw"\usepgfplotslibrary{colorbrewer}",
+        raw"\usepgfplotslibrary{colormaps}",
+        raw"\usepgfplotslibrary{patchplots}",
+        raw"\pgfplotsset
+            {   
+                tick label style = {font = {\fontsize{12 pt}{12 pt}\selectfont}},
+                label style = {font = {\fontsize{12 pt}{12 pt}\selectfont}},
+                legend style = {font = {\fontsize{12 pt}{12 pt}\selectfont}},
+                title style = {font = {\fontsize{12 pt}{12 pt}\selectfont}},
+            }"
+)
+
 # Manual input
 pre_covid = true;
 compute_ep_cycle = false;
 n_series = 9;
 n_cycles = 7; # shortcut to denote the variable that identifies the energy cycle
 n_cons_prices = 2;
+
+units = ["Percent", "Index (2012=100)", "Bil. Chn. 2012", "Mil. of persons", "Percent", "Percent", "Percent", "Percent", "Percent"];
+custom_rescaling = [1, 1, 1, 1000, 1, 1, 1, 1, 1];
 
 # Data
 if compute_ep_cycle == false
@@ -61,6 +78,13 @@ smoothed_idio_cycles = std_diff_data .* smoothed_states[ind_idio_cycles, :];
 smoothed_bc_cycle = std_diff_data .* (sspace.B[:, ind_bc_cycle:ind_bc_cycle+estim.lags-1]*smoothed_states[ind_bc_cycle:ind_bc_cycle+estim.lags-1, :]);
 smoothed_ep_cycle = std_diff_data .* (sspace.B[:, ind_ep_cycle:end-1]*smoothed_states[ind_ep_cycle:end-1, :]);
 
+# Custom rescaling
+smoothed_trends ./= custom_rescaling;
+smoothed_drifts ./= custom_rescaling[2:4];
+smoothed_idio_cycles ./= custom_rescaling;
+smoothed_bc_cycle ./= custom_rescaling;
+smoothed_ep_cycle ./= custom_rescaling;
+
 #=
 Plotting stage
 =#
@@ -91,6 +115,8 @@ for i=1:9
             grid = "both",
             xmin=ref_dates_grid[1],
             xmax=ref_dates_grid[end],
+            ylabel=units[i],
+            "ylabel absolute",
             legend_style=legend_style_content,
         },
 
@@ -104,7 +130,7 @@ for i=1:9
 end
 
 fig = @pgf TikzPicture(GroupPlot(
-    { group_style = {group_size="3 by 3", vertical_sep="50pt"},
+    { group_style = {group_size="3 by 3", vertical_sep="60pt", horizontal_sep="60pt"},
       no_markers,
       legend_pos="north west",
       height="150pt",
