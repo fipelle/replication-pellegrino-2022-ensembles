@@ -6,10 +6,10 @@ This article proposes an extension for standard time-series regression tree mode
 ## Citation
 If you use this code or build upon it, please use the following (bibtex) citation:
 ```bibtex
-@misc{pellegrino2021factoraugmented,
+@misc{pellegrino2022factoraugmented,
       title={Factor-augmented tree ensembles}, 
       author={Filippo Pellegrino},
-      year={2021},
+      year={2022},
       eprint={2111.14000},
       archivePrefix={arXiv},
       primaryClass={stat.ML}
