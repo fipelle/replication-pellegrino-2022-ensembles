@@ -28,14 +28,16 @@ tickers = ["TCU", "INDPRO", "PCE", "PAYEMS", "EMRATIO", "UNRATE", "PCEPI", "CPIA
 fred_options = Dict(:realtime_start => "2005-01-31", :realtime_end => "2020-12-31", :observation_start => "1983-01-01"); # 1983 is one year prior to the actual observation_start
 
 # Series classification (WARNING: manual input required)
-n_cycles = 7; # shortcut to denote the variable that identifies the energy cycle
-n_cons_prices = 2;
+n_cycles = 7;      # shortcut to denote the variable that identifies the energy cycle (i.e., `WTISPLC` after having included it prior to `PCEPI`)
+n_cons_prices = 2; # number of consumer price indices in the dataset
 
-# Download data from ALFRED
+# Download options for ALFRED
 frequencies = ["m" for i=1:length(tickers)];
 rm_base_year_effect = zeros(length(tickers));
-rm_base_year_effect[findfirst(tickers .== "INDPRO")] = 1; # PCEPI adjusted below with an ad-hoc mechanism, when deflating PCE
+rm_base_year_effect[findfirst(tickers .== "INDPRO")] = 1; # PCEPI adjusted below with an ad-hoc mechanism, when deflating PCE - no other series requires similar adjustments
 rm_base_year_effect = rm_base_year_effect .== 1;
+
+# Download data from ALFRED
 df = get_fred_vintages(tickers, frequencies, fred_options, rm_base_year_effect);
 
 # Energy commodities

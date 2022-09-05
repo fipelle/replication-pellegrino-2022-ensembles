@@ -39,9 +39,9 @@ function get_fred_vintages(tickers::Array{String,1}, frequencies::Array{String,1
 
         # Get data from FRED
         df_ticker = get_data(f, ticker, frequency=frequency; fred_options...).data;
-        # TBC: do we want to have a try-catch within a for loop to try a few times to get the data from fred?
+        # TBD: do we want to have a try-catch within a for loop to try a few times to get the data from fred?
 
-        # Keep columns that can be aligned with the DataFrame computed by `get_local_vintages(...)`
+        # Keep columns compatible with DataFrames constructed by `get_local_vintages(...)`
         df_ticker = df_ticker[!, [:realtime_start, :date, :value]];
 
         # Set reference dates to eop in order to correctly align mixed frequency vintages
@@ -68,7 +68,13 @@ function get_fred_vintages(tickers::Array{String,1}, frequencies::Array{String,1
             # Find rows for the entries corresponding to the first reference date
             ind_first_reference_date = findall(df_ticker[!,:date] .== minimum(df_ticker[!,:date]));
             
-            # Check whether there is a base effect to remove in the first place
+            #=
+            Check whether there is a base effect to remove in the first place.
+            - Note that right now the code adjusts the data if there are multiple entries for the first reference date.
+              This implies that the code should be generalised (TBD) to handle peculiar cases in which the first reference
+              date is excluded at source from all vintages except one. 
+            =#
+            
             if length(ind_first_reference_date) > 1
             
                 # Compute corresponding SubDataFrame
@@ -78,15 +84,15 @@ function get_fred_vintages(tickers::Array{String,1}, frequencies::Array{String,1
                     error("The effect of the base year cannot be removed in $(ticker) with the current approach. Try changing observation_start to a more recent date or set rm_base_year_effect to false for $(ticker).");
                 end
 
-                # Compute adjustment factors
+                # Compute adjustment factors (i.e., use the latest base year)
                 adjustment_factors = sub_df_ticker[end,:value] ./ sub_df_ticker[!,:value];
-
+                
                 # Loop over every release date
                 for release_date in unique(df_ticker[!,:realtime_start])
 
                     # Current adjustment factor
                     adjustment_factor = adjustment_factors[findlast(sub_df_ticker[!,:realtime_start] .<= release_date)];
-
+                    
                     # Apply adjustment
                     df_ticker[df_ticker[!,:realtime_start] .== release_date, :value] .*= adjustment_factor;
                 end
@@ -134,6 +140,8 @@ function get_local_vintages(tickers::Array{String,1}, data::Array{Union{Missing,
     if n_releases != size(release_dates,1);
         error("The reference dates are not correctly aligned with the releases");
     end
+
+    @warning("`get_local_vintages(...)` is experimental!");
 
     # Memory pre-allocation for final output
     df = DataFrame();
