@@ -141,7 +141,7 @@ function get_local_vintages(tickers::Array{String,1}, data::Array{Union{Missing,
         error("The reference dates are not correctly aligned with the releases");
     end
 
-    @warning("`get_local_vintages(...)` is experimental!");
+    @warn("`get_local_vintages(...)` is experimental!");
 
     # Memory pre-allocation for final output
     df = DataFrame();
