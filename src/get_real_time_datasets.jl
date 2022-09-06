@@ -1,6 +1,7 @@
 using Dates;
 using FredData;
 using DataFrames;
+using Infiltrator;
 
 """
     get_fred_vintages(tickers::Array{String,1}, frequencies::Array{String,1}, fred_options::Dict{Symbol, String}, rm_base_year_effect::BitArray{1})
@@ -234,44 +235,67 @@ function get_vintages_array(df::DataFrame, sampling_frequency::String)
 
     # Loop over the releases
     for i=1:n_releases
-        #=
-        if i == 1 || mod(i, 100) == 0 || i == n_releases
-            @info("Build vintage $i (out of $(n_releases))");
-        end
-        =#
 
         # Current release (only new observations and revisions)
         ind_release = findall(df[!,:release_dates] .== unique_release_dates[i]);
         df_release = df[ind_release, 2:end];
         sort!(df_release, :reference_dates);
 
-        if i == 1
-            # Current complete data vintage
+        # Initial data vintage
+        if i == 1            
             df_vintage = df_release;
-
+        
+        # Following vintages
         else
-            # Revisions and new_observations
+            
+            #=
+            Revisions and new observations
+            - `df_revisions` includes revisions to points in time observed in previous vintages. This broad definition includes data revisions and advanced measurements (i.e, new observations) referring to previously observed points in time.
+            - `df_new_observations` includes observations for points in time not observed in previous vintages.
+            =#
+            
             df_revisions = semijoin(df_release, df_vintage, on=:reference_dates);
             df_new_observations = antijoin(df_release, df_vintage, on=:reference_dates);
 
-            # Update df_vintage inplace with the data revisions (if any)
-            for revision in eachrow(df_revisions)
-                ind_revision = @views findfirst(df_vintage[!,:reference_dates] .== revision[:reference_dates]);
-                for ticker in eachindex(revision)
-                    if (ticker != :reference_dates) && ~ismissing(revision[ticker])
-                        df_vintage[ind_revision, ticker] = revision[ticker];
+            @infiltrate
+            
+            # Update `df_vintage` inplace with the data revisions (if any) looping over each reference period in `df_revisions`
+            for df_revision in eachrow(df_revisions)
+
+                @infiltrate
+
+                # Alignment point between `df_revision` and `df_vintage`
+                row_to_revise = findfirst(view(df_vintage, !, :reference_dates) .== df_revision[:reference_dates]);
+
+                @infiltrate
+
+                # Revise each observed entry/ticker in `df_revision`
+                for ticker in eachindex(df_revision)
+                    
+                    @infiltrate
+
+                    if (ticker != :reference_dates) && ~ismissing(df_revision[ticker])
+                        df_vintage[row_to_revise, ticker] = df_revision[ticker];
                     end
                 end
+
+                @infiltrate
             end
+
+            @infiltrate
 
             # Add new observations
             append!(df_vintage, df_new_observations);
+
+            @infiltrate
 
             # Add missing rows (if necessary)
             full_reference_dates_release = full_reference_dates[full_reference_dates .<= maximum(df_vintage[!,:reference_dates])];
             if df_vintage[!,:reference_dates] != full_reference_dates_release
                 df_vintage = outerjoin(DataFrame(:reference_dates=>full_reference_dates_release), df_vintage, on=:reference_dates);
             end
+
+            @infiltrate
 
             # Sort df_vintage
             sort!(df_vintage, :reference_dates);

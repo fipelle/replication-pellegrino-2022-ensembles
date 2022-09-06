@@ -46,13 +46,10 @@ fred_options_energy = Dict(:observation_start => "1983-01-01", :observation_end 
 df_energy = get_financial_vintages(tickers_energy, fred_options_energy, Date(fred_options[:realtime_start]));
 
 # Join `df` and `df_energy`
+insert!(tickers, length(tickers)-n_cons_prices+1, tickers_energy...); # place before inflation indices (excluding `PCEPI` given that is later removed from the sample)
 df = outerjoin(df, df_energy, on=[:reference_dates, :release_dates]);
-df = df[!, vcat(:release_dates, :reference_dates, Symbol.(tickers[1:end-n_cons_prices]), Symbol.(tickers_energy), Symbol.(tickers[end-n_cons_prices+1:end]))];
+df = df[!, vcat(:release_dates, :reference_dates, Symbol.(tickers))];
 sort!(df, :release_dates);
-
-# No. of series
-tickers = names(df)[3:end];
-n_series = length(tickers);
 
 # Build data vintages
 data_vintages, release_dates = get_vintages_array(df, "m");
@@ -65,9 +62,8 @@ first_obs_last_vintage_PCEPI = data_vintages[end][1, :PCEPI]; # this is used for
 # Final columns to keep in each vintage
 new_vintage_cols = vcat(:reference_dates, Symbol.(tickers[tickers .!= "PCEPI"]));
 
-# Update `tickers` and `n_series` to account for the removal of PCEPI
+# Update `tickers` to account for the removal of PCEPI
 tickers = tickers[tickers .!= "PCEPI"];
-n_series -= 1;
 
 # Loop over every data vintage
 for i=1:length(data_vintages)
@@ -121,6 +117,9 @@ Setup validation problem
 # Selection sample
 selection_sample = data_vintages[1][!,2:end] |> JMatrix{Float64};
 selection_sample = permutedims(selection_sample);
+
+# Number of series
+n_series = length(tickers);
 
 # Validation inputs: common for all err_types
 gamma_bounds = ([12, 12], [0.01, 2.50], [0.0, 1.0], [1.0, 1.2]);
