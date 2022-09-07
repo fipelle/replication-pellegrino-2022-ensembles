@@ -1,9 +1,9 @@
 """
-    deflate_vintages_array!(data_vintages::Array{DataFrame,1}, release_dates::Vector{Dates}, tickers::Vector{String}, tickers_to_deflate::Vector{String})
+    deflate_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String})
 
 Remove `:PCEPI` from the data vintages, after having used it for deflating the series indicated in tickers_to_deflate.
 """
-function deflate_vintages_array!(data_vintages::Array{DataFrame,1}, release_dates::Vector{Dates}, tickers::Vector{String}, tickers_to_deflate::Vector{String})
+function deflate_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String})
 
     # Compute reference value to the first obs. of the last PCEPI vintage
     first_obs_last_vintage_PCEPI = data_vintages[end][1, :PCEPI]; # this is used for removing base year effects in previous vintages
