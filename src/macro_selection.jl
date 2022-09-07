@@ -54,26 +54,29 @@ sort!(df, :release_dates);
 # Build data vintages
 data_vintages, release_dates = get_vintages_array(df, "m");
 
-# Manual data transformations
+#=
+Manual data transformations
+- Remove `:PCEPI` from the data vintages, after having used it for deflating PCE
+=#
 
 # Compute reference value to the first obs. of the last PCEPI vintage
-first_obs_last_vintage_PCEPI = data_vintages[end][1, :PCEPI]; # this is used for rebasing PCEPI
-
-# Final columns to keep in each vintage
-new_vintage_cols = vcat(:reference_dates, Symbol.(tickers[tickers .!= "PCEPI"]));
+first_obs_last_vintage_PCEPI = data_vintages[end][1, :PCEPI]; # this is used for removing base year effects in previous vintages
 
 # Update `tickers` to account for the removal of PCEPI
 tickers = tickers[tickers .!= "PCEPI"];
 
+# Column names excluding `:PCEPI`
+new_vintage_cols = vcat(:reference_dates, Symbol.(tickers));
+
 # Loop over every data vintage
-for i=1:length(data_vintages)
+for i in axes(data_vintages, 1)
 
     # Pointer
     vintage = data_vintages[i];
 
     # Rescale PCE deflator
     if ismissing(vintage[1, :PCEPI])
-        error("Base year effect cannot be removed from PCEPI");
+        error("Base year effect cannot be removed from PCEPI"); # TBC: this line could be generalised further - not needed for the current empirical application
     end
     vintage[!, :PCEPI] ./= vintage[1, :PCEPI];
     vintage[!, :PCEPI] .*= first_obs_last_vintage_PCEPI;
