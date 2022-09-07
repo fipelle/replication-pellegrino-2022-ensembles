@@ -56,7 +56,7 @@ sort!(df, :release_dates);
 data_vintages, release_dates = get_vintages_array(df, "m");
 
 # Remove `:PCEPI` from the data vintages, after having used it for deflating the series indicated in `tickers_to_deflate`
-tickers = deflate_vintages_array!(data_vintages, release_dates, tickers, tickers_to_deflate);
+transform_vintages_array!(data_vintages, release_dates, tickers, tickers_to_deflate, n_cons_prices);
 
 #=
 Setup validation problem

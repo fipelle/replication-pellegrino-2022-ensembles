@@ -1,9 +1,11 @@
+using Infiltrator;
+
 """
-    deflate_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String})
+    transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String}, n_cons_prices::Int64)
 
 Remove `:PCEPI` from the data vintages, after having used it for deflating the series indicated in tickers_to_deflate.
 """
-function deflate_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String})
+function transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String}, n_cons_prices::Int64)
 
     # Compute reference value to the first obs. of the last PCEPI vintage
     first_obs_last_vintage_PCEPI = data_vintages[end][1, :PCEPI]; # this is used for removing base year effects in previous vintages
@@ -21,42 +23,56 @@ function deflate_vintages_array!(data_vintages::Vector{DataFrame}, release_dates
         vintage[!, :PCEPI] ./= vintage[1, :PCEPI];
         vintage[!, :PCEPI] .*= first_obs_last_vintage_PCEPI;
 
+        @infiltrate
+
         # Custom real variables
         for ticker in Symbol.(tickers_to_deflate)
+
+            @infiltrate
 
             # Deflate
             vintage[!, ticker] ./= vintage[!, :PCEPI];
             vintage[!, ticker] .*= 100;
 
+            @infiltrate
+
             # Rename
             rename!(vintage, (ticker => Symbol("R$(ticker)")));
         end
 
+        @infiltrate
+
         # Remove PCEPI
         select!(vintage, Not(:PCEPI));
 
-        # Compute YoY%
+        @infiltrate
+
+        # Compute YoY% for all prices
         for ticker in Symbol.(tickers[end-n_cons_prices:end])
             vintage[13:end, ticker] = 100*(vintage[13:end, ticker] ./ vintage[1:end-12, ticker] .- 1);
         end
 
-        # Overwrite vintage by removing the first 12 months and PCEPI
-        vintage = vintage[13:end, :];
-
-        # Update data_vintages
-        data_vintages[i] = vintage;
+        # Store transformed vintage 
+        data_vintages[i] = vintage[13:end, :];
     end
+
+    @infiltrate
 
     # Remove problematic ALFRED data vintages for PCEPI
     ind_problematic_release = findfirst(release_dates .== Date("2009-08-04")); # PCEPI is incorrectly recorded at that date in ALFRED
     deleteat!(release_dates, ind_problematic_release);
     deleteat!(data_vintages, ind_problematic_release);
 
-    # Update tickers accordingly
-    tickers = names(data_vintages[end])[2:end]
+    @infiltrate
 
-    # Return output
-    return tickers;
+    # Update tickers accordingly
+    new_tickers = names(data_vintages[end])[2:end];
+    deleteat!(tickers, findfirst(tickers .== "PCEPI"));
+    for i in axes(tickers, 1)
+        tickers[i] = new_tickers[i];
+    end
+
+    @infiltrate
 end
 
 """
