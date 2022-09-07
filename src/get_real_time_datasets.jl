@@ -1,7 +1,6 @@
 using Dates;
 using FredData;
 using DataFrames;
-using Infiltrator;
 
 """
     get_fred_vintages(tickers::Array{String,1}, frequencies::Array{String,1}, fred_options::Dict{Symbol, String}, rm_base_year_effect::BitArray{1})
@@ -256,7 +255,7 @@ function get_vintages_array(df::DataFrame, sampling_frequency::String)
             
             df_revisions = semijoin(df_release, df_vintage, on=:reference_dates);
             df_new_observations = antijoin(df_release, df_vintage, on=:reference_dates);
-                        
+            
             # Update `df_vintage` inplace with the data revisions (if any) looping over each reference period in `df_revisions`
             for df_revision in eachrow(df_revisions)
 
