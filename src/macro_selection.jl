@@ -25,6 +25,7 @@ Generate data vintages
 
 # Macroeconomic indicators
 tickers = ["TCU", "INDPRO", "PCE", "PAYEMS", "EMRATIO", "UNRATE", "PCEPI", "CPIAUCNS", "CPILFENS"];
+tickers_to_deflate = ["PCE"];
 fred_options = Dict(:realtime_start => "2005-01-31", :realtime_end => "2020-12-31", :observation_start => "1983-01-01"); # 1983 is one year prior to the actual observation_start
 
 # Series classification (WARNING: manual input required)
@@ -54,64 +55,8 @@ sort!(df, :release_dates);
 # Build data vintages
 data_vintages, release_dates = get_vintages_array(df, "m");
 
-#=
-Manual data transformations
-- Remove `:PCEPI` from the data vintages, after having used it for deflating PCE
-=#
-
-# Compute reference value to the first obs. of the last PCEPI vintage
-first_obs_last_vintage_PCEPI = data_vintages[end][1, :PCEPI]; # this is used for removing base year effects in previous vintages
-
-# Update `tickers` to account for the removal of PCEPI
-tickers = tickers[tickers .!= "PCEPI"];
-
-# Column names excluding `:PCEPI`
-new_vintage_cols = vcat(:reference_dates, Symbol.(tickers));
-
-# Loop over every data vintage
-for i in axes(data_vintages, 1)
-
-    # Pointer
-    vintage = data_vintages[i];
-
-    # Rescale PCE deflator
-    if ismissing(vintage[1, :PCEPI])
-        error("Base year effect cannot be removed from PCEPI"); # TBC: this line could be generalised further - not needed for the current empirical application
-    end
-    vintage[!, :PCEPI] ./= vintage[1, :PCEPI];
-    vintage[!, :PCEPI] .*= first_obs_last_vintage_PCEPI;
-
-    # Custom real variables
-    for ticker in [:PCE]
-        vintage[!, ticker] ./= vintage[!, :PCEPI];
-        vintage[!, ticker] .*= 100;
-    end
-
-    # Remove PCEPI
-    vintage = vintage[:, new_vintage_cols];
-
-    # Compute YoY%
-    for ticker in Symbol.(tickers[n_cycles:end])
-        vintage[13:end, ticker] = 100*(vintage[13:end, ticker] ./ vintage[1:end-12, ticker] .- 1);
-    end
-
-    # Overwrite vintage by removing the first 12 months and PCEPI
-    vintage = vintage[13:end, :];
-
-    # Rename PCE to RPCE
-    rename!(vintage, (:PCE => :RPCE));
-
-    # Update data_vintages
-    data_vintages[i] = vintage;
-end
-
-# Update tickers accordingly
-tickers[findfirst(tickers .== "PCE")] = "RPCE";
-
-# Remove problematic ALFRED data vintages for PCEPI
-ind_problematic_release = findfirst(release_dates .== Date("2009-08-04")); # PCEPI is incorrectly recorded at that date in ALFRED
-deleteat!(release_dates, ind_problematic_release);
-deleteat!(data_vintages, ind_problematic_release);
+# Remove `:PCEPI` from the data vintages, after having used it for deflating the series indicated in tickers_to_deflate
+tickers = deflate_vintages_array!(data_vintages, release_dates, tickers, tickers_to_deflate);
 
 #=
 Setup validation problem

@@ -1,4 +1,65 @@
 """
+    deflate_vintages_array!(data_vintages::Array{DataFrame,1}, release_dates::Vector{Dates}, tickers::Vector{String}, tickers_to_deflate::Vector{String})
+
+Remove `:PCEPI` from the data vintages, after having used it for deflating the series indicated in tickers_to_deflate.
+"""
+function deflate_vintages_array!(data_vintages::Array{DataFrame,1}, release_dates::Vector{Dates}, tickers::Vector{String}, tickers_to_deflate::Vector{String})
+
+    # Compute reference value to the first obs. of the last PCEPI vintage
+    first_obs_last_vintage_PCEPI = data_vintages[end][1, :PCEPI]; # this is used for removing base year effects in previous vintages
+
+    # Loop over every data vintage
+    for i in axes(data_vintages, 1)
+
+        # Pointer
+        vintage = data_vintages[i];
+
+        # Rescale PCE deflator
+        if ismissing(vintage[1, :PCEPI])
+            error("Base year effect cannot be removed from PCEPI"); # TBC: this line could be generalised further - not needed for the current empirical application
+        end
+        vintage[!, :PCEPI] ./= vintage[1, :PCEPI];
+        vintage[!, :PCEPI] .*= first_obs_last_vintage_PCEPI;
+
+        # Custom real variables
+        for ticker in Symbol.(tickers_to_deflate)
+
+            # Deflate
+            vintage[!, ticker] ./= vintage[!, :PCEPI];
+            vintage[!, ticker] .*= 100;
+
+            # Rename
+            rename!(vintage, (ticker => Symbol("R$(ticker)")));
+        end
+
+        # Remove PCEPI
+        select!(vintage, Not(:PCEPI));
+
+        # Compute YoY%
+        for ticker in Symbol.(tickers[end-n_cons_prices:end])
+            vintage[13:end, ticker] = 100*(vintage[13:end, ticker] ./ vintage[1:end-12, ticker] .- 1);
+        end
+
+        # Overwrite vintage by removing the first 12 months and PCEPI
+        vintage = vintage[13:end, :];
+
+        # Update data_vintages
+        data_vintages[i] = vintage;
+    end
+
+    # Remove problematic ALFRED data vintages for PCEPI
+    ind_problematic_release = findfirst(release_dates .== Date("2009-08-04")); # PCEPI is incorrectly recorded at that date in ALFRED
+    deleteat!(release_dates, ind_problematic_release);
+    deleteat!(data_vintages, ind_problematic_release);
+
+    # Update tickers accordingly
+    tickers = names(data_vintages[end])[2:end]
+
+    # Return output
+    return tickers;
+end
+
+"""
     get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, n_cons_prices::Int64)
 
 Return DFM args, kwargs and coordinates_params_rescaling for extracting the business cycle from the macro data of interest.
