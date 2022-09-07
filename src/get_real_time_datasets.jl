@@ -242,7 +242,7 @@ function get_vintages_array(df::DataFrame, sampling_frequency::String)
         sort!(df_release, :reference_dates);
 
         # Initial data vintage
-        if i == 1            
+        if i == 1
             df_vintage = df_release;
         
         # Following vintages
@@ -256,46 +256,29 @@ function get_vintages_array(df::DataFrame, sampling_frequency::String)
             
             df_revisions = semijoin(df_release, df_vintage, on=:reference_dates);
             df_new_observations = antijoin(df_release, df_vintage, on=:reference_dates);
-
-            @infiltrate
-            
+                        
             # Update `df_vintage` inplace with the data revisions (if any) looping over each reference period in `df_revisions`
             for df_revision in eachrow(df_revisions)
-
-                @infiltrate
 
                 # Alignment point between `df_revision` and `df_vintage`
                 row_to_revise = findfirst(view(df_vintage, !, :reference_dates) .== df_revision[:reference_dates]);
 
-                @infiltrate
-
                 # Revise each observed entry/ticker in `df_revision`
                 for ticker in eachindex(df_revision)
-                    
-                    @infiltrate
-
                     if (ticker != :reference_dates) && ~ismissing(df_revision[ticker])
                         df_vintage[row_to_revise, ticker] = df_revision[ticker];
                     end
                 end
-
-                @infiltrate
             end
-
-            @infiltrate
 
             # Add new observations
             append!(df_vintage, df_new_observations);
-
-            @infiltrate
 
             # Add missing rows (if necessary)
             full_reference_dates_release = full_reference_dates[full_reference_dates .<= maximum(df_vintage[!,:reference_dates])];
             if df_vintage[!,:reference_dates] != full_reference_dates_release
                 df_vintage = outerjoin(DataFrame(:reference_dates=>full_reference_dates_release), df_vintage, on=:reference_dates);
             end
-
-            @infiltrate
 
             # Sort df_vintage
             sort!(df_vintage, :reference_dates);
