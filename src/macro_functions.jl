@@ -23,37 +23,27 @@ function transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dat
         vintage[!, :PCEPI] ./= vintage[1, :PCEPI];
         vintage[!, :PCEPI] .*= first_obs_last_vintage_PCEPI;
 
-        @infiltrate
-
         # Custom real variables
         for ticker in Symbol.(tickers_to_deflate)
-
-            @infiltrate
 
             # Deflate
             vintage[!, ticker] ./= vintage[!, :PCEPI];
             vintage[!, ticker] .*= 100;
 
-            @infiltrate
-
             # Rename
             rename!(vintage, (ticker => Symbol("R$(ticker)")));
         end
 
-        @infiltrate
-
         # Remove PCEPI
         select!(vintage, Not(:PCEPI));
 
-        @infiltrate
-
         # Compute YoY% for all prices
         for ticker in Symbol.(tickers[end-n_cons_prices:end])
-            vintage[13:end, ticker] = 100*(vintage[13:end, ticker] ./ vintage[1:end-12, ticker] .- 1);
+            vintage[13:end, ticker] .= 100*(vintage[13:end, ticker] ./ vintage[1:end-12, ticker] .- 1);
         end
 
-        # Store transformed vintage 
-        data_vintages[i] = vintage[13:end, :];
+        # Remove first 12 observations (consequence of taking the YoY% transformation for all prices)
+        deleteat!(vintage, 1:12);
     end
 
     @infiltrate
