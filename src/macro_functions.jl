@@ -60,11 +60,11 @@ function transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dat
 end
 
 """
-    get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, n_cons_prices::Int64)
+    get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, n_cons_prices::Int64, use_rw_and_i2_trends::Bool)
 
 Return DFM args, kwargs and coordinates_params_rescaling for extracting the business cycle from the macro data of interest.
 """
-function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, n_cons_prices::Int64)
+function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, n_cons_prices::Int64, use_rw_and_i2_trends::Bool)
 
     # DFM cycle setup
     if compute_ep_cycle
@@ -76,8 +76,12 @@ function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, 
 
     # DFM trend setup
     n_trends = n_series-n_cons_prices+1;
-    trends_skeleton = Matrix(1.0I, n_trends, n_trends);
-    trends_skeleton = [trends_skeleton; zeros(n_cons_prices-1, n_trends-1) 1.0];
+    
+    # Setup `trends_skeleton`
+    trends_skeleton = Matrix(1.0I, n_trends, n_trends);                          # idiosyncratic trends for all series
+    trends_skeleton = [trends_skeleton; zeros(n_cons_prices-1, n_trends-1) 1.0]; # common trend between cpi and core cpi inflation
+
+    # Setup `coordinates_params_rescaling` for trend inflation
     coordinates_params_rescaling = Vector{Vector{Int64}}(undef, n_cons_prices);
     lin_coordinates_params_rescaling = LinearIndices(trends_skeleton)[end-n_cons_prices+1:end, end];
     for i=1:n_cons_prices
@@ -87,6 +91,9 @@ function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, 
 
     # DFM drift setup
     drifts_selection = vcat(false, true, true, true, [false for i=1:n_trends-4]...) |> BitArray{1};
+    if ~use_rw_and_i2_trends
+        drifts_selection[drifts_selection .== 0] .= 1; # use i2 trends only
+    end
 
     # Build `model_args` and `model_kwargs`
     model_args = (trends_skeleton, cycles_skeleton, drifts_selection, trends_free_params, cycles_free_params);
