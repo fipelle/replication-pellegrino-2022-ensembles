@@ -46,14 +46,10 @@ function transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dat
         deleteat!(vintage, 1:12);
     end
 
-    @infiltrate
-
     # Remove problematic ALFRED data vintages for PCEPI
     ind_problematic_release = findfirst(release_dates .== Date("2009-08-04")); # PCEPI is incorrectly recorded at that date in ALFRED
     deleteat!(release_dates, ind_problematic_release);
     deleteat!(data_vintages, ind_problematic_release);
-
-    @infiltrate
 
     # Update tickers accordingly
     new_tickers = names(data_vintages[end])[2:end];
@@ -61,8 +57,6 @@ function transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dat
     for i in axes(tickers, 1)
         tickers[i] = new_tickers[i];
     end
-
-    @infiltrate
 end
 
 """
