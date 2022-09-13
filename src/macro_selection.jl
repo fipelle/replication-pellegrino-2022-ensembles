@@ -10,6 +10,7 @@ include("./macro_functions.jl");
 Load arguments passed through the command line
 =#
 
+#=
 # EP or not
 compute_ep_cycle = parse(Bool, ARGS[1]);
 
@@ -18,6 +19,10 @@ err_type = parse(Int64, ARGS[2]);
 
 # Output folder
 log_folder_path = ARGS[3];
+=#
+
+# DEBUGGING SETTINGS
+compute_ep_cycle=false; err_type=4; log_folder_path="..";
 
 #=
 Generate data vintages
@@ -96,7 +101,7 @@ end
 max_samples = 1000;
 
 # Validation settings
-model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices);
+model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices, false);
 vs_prerun = ValidationSettings(err_type, selection_sample, false, DFMSettings, model_args=model_args, model_kwargs=model_kwargs, coordinates_params_rescaling=coordinates_params_rescaling, weights=weights, t0=t0, subsample=subsample, max_samples=max_samples, log_folder_path=log_folder_path, verb=false);
 vs = ValidationSettings(err_type, selection_sample, false, DFMSettings, model_args=model_args, model_kwargs=model_kwargs, coordinates_params_rescaling=coordinates_params_rescaling, weights=weights, t0=t0, subsample=subsample, max_samples=max_samples, log_folder_path=log_folder_path);
 
