@@ -10,7 +10,6 @@ include("./macro_functions.jl");
 Load arguments passed through the command line
 =#
 
-#=
 # EP or not
 compute_ep_cycle = parse(Bool, ARGS[1]);
 
@@ -19,10 +18,6 @@ err_type = parse(Int64, ARGS[2]);
 
 # Output folder
 log_folder_path = ARGS[3];
-=#
-
-# DEBUGGING SETTINGS
-compute_ep_cycle=false; err_type=4; log_folder_path="..";
 
 #=
 Generate data vintages
