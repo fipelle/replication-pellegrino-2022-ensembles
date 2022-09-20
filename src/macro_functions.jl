@@ -121,3 +121,36 @@ function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hy
     # Return output
     return estim, std_diff_data;
 end
+
+"""
+    standardise_heterogeneous_data!(heterogeneous_data::JMatrix{Float64}, groups::VectorsArray{Int64}, drifts_selection::BitVector, n_aggregates::Int64, n_groups::Int64)
+
+Standardise macroeconomic and microeconomic data.
+"""
+function standardise_heterogeneous_data!(heterogeneous_data::JMatrix{Float64}, groups::VectorsArray{Int64}, drifts_selection::BitVector, n_aggregates::Int64, n_groups::Int64)
+
+    # Initialise scaling factors
+    scaling_factors = zeros(size(heterogeneous_data, 1));
+
+    # Aggregate data
+    for i=1:n_aggregates
+        scaling_factors[i] = compute_scaling_factor(heterogeneous_data[i, :], drifts_selection[i]==0);
+    end
+    
+    # Disaggregate data
+    for i in 1:n_groups
+
+        # Group average
+        current_group_average = mean_skipmissing(heterogeneous_data[groups[i][1]:groups[i][2], :]')[:] |> JVector{Float64};
+        current_group_average[isnan.(current_group_average)] .= missing;
+
+        # Scaling factor
+        scaling_factors[groups[i][1]:groups[i][2]] .= compute_scaling_factor(current_group_average, drifts_selection[i]==0);
+    end
+
+    # Adjust `heterogeneous_data`
+    heterogeneous_data ./= scaling_factors;
+
+    # Return `scaling_factors`
+    return scaling_factors;
+end
