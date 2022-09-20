@@ -52,3 +52,25 @@ Setup single tc run
 # Selection sample
 full_sample = data_vintages[end][!,2:end] |> JMatrix{Float64};
 full_sample = permutedims(full_sample);
+
+# DFMSettings base options
+λ, α, β = (1.25, 0.50, 1.25);
+lags = 12;
+trends_skeleton, cycles_skeleton, drifts_selection, trends_free_params, cycles_free_params = get_mdfm_args(n_aggregates+n_groups, n_groups, sampling_frequency, use_rw_and_i2_trends)[1];
+
+# Standardise data
+scaling_factors = standardise_data!(full_sample, drifts_selection);
+
+# Setup `estim`
+estim = DFMSettings(full_sample, lags, trends_skeleton, cycles_skeleton, drifts_selection, trends_free_params, cycles_free_params, λ, α, β, ε=0.01, tol=0.001, check_quantile=true);
+
+# Update `trends_skeleton` to account for the scaling factors
+estim.trends_skeleton ./= scaling_factors;
+
+# Delete large temporary variables
+heterogeneous_df = nothing;
+full_sample = nothing;
+
+# Run ecm
+sspace = ecm(estim);
+@info("Time after run: $(now())");
