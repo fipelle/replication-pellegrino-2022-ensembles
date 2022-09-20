@@ -104,11 +104,49 @@ function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, 
 end
 
 """
+    compute_scaling_factor(current_series::JVector{Float64}, current_drift_selection::Bool)
+
+Compute scaling factor for standardise_heterogeneous_data!(...).
+"""
+function compute_scaling_factor(current_series::JVector{Float64}, current_drift_selection::Bool)
+    
+    @warn("This should be moved under MessyTimeSeries.jl");
+
+    # Differenced data
+    differenced_data = diff_or_diff2(current_series, 1, current_drift_selection);
+
+    # Scaling factor
+    scaling_factors = std_skipmissing(differenced_data);
+    
+    # Return output
+    return scaling_factors;
+end
+
+"""
+    standardise_macro_data!(macro_data::JMatrix{Float64}, drifts_selection::BitVector)
+
+Standardise macroeconomic data.
+"""
+function standardise_macro_data!(macro_data::JMatrix{Float64}, drifts_selection::BitVector)
+
+    # Compute scaling factors
+    scaling_factors = [compute_scaling_factor(macro_data[i, :], drifts_selection[i]==0) for i in axes(macro_data, 1)];
+    
+    # Adjust `macro_data`
+    macro_data ./= scaling_factors;
+
+    # Return `scaling_factors`
+    return scaling_factors;
+end
+
+"""
     get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}})
 
 Get trend-cycle model structure.
 """
 function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}})
+
+    error("This must be upgraded to support the new standardisation function etc.");
 
     # Standardise data
     std_diff_data = std_skipmissing(diff(data, dims=2));
@@ -120,21 +158,4 @@ function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hy
 
     # Return output
     return estim, std_diff_data;
-end
-
-"""
-    standardise_macro_data!(macro_data::JMatrix{Float64}, drifts_selection::BitVector)
-
-Standardise macroeconomic data.
-"""
-function standardise_macro_data!(macro_data::JMatrix{Float64}, drifts_selection::BitVector)
-
-    # Compute scaling factors
-    scaling_factors = [compute_scaling_factor(macro_data[i, :], drifts_selection[i]==0) for i=1:size(macro_data, 1)];
-    
-    # Adjust `macro_data`
-    macro_data ./= scaling_factors;
-
-    # Return `scaling_factors`
-    return scaling_factors;
 end
