@@ -104,25 +104,6 @@ function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, 
 end
 
 """
-    compute_scaling_factor(current_series::JVector{Float64}, current_drift_selection::Bool)
-
-Compute scaling factor for standardise_heterogeneous_data!(...).
-"""
-function compute_scaling_factor(current_series::JVector{Float64}, current_drift_selection::Bool)
-    
-    @warn("This should be moved under MessyTimeSeries.jl");
-
-    # Differenced data
-    differenced_data = diff_or_diff2(current_series, 1, current_drift_selection);
-
-    # Scaling factor
-    scaling_factors = std_skipmissing(differenced_data);
-    
-    # Return output
-    return scaling_factors;
-end
-
-"""
     standardise_macro_data!(macro_data::JMatrix{Float64}, drifts_selection::BitVector)
 
 Standardise macroeconomic data.

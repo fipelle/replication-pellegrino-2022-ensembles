@@ -56,10 +56,12 @@ full_sample = permutedims(full_sample);
 # DFMSettings base options
 λ, α, β = (1.25, 0.50, 1.25);
 lags = 12;
+compute_ep_cycle=true;
+n_series = length(tickers); # the tickers are incomplete - i need to check what's missing (TBD)
 model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices, false);
 
 # Standardise data
-scaling_factors = standardise_data!(full_sample, model_args[3]); # model_args[3] ≡ drifts_selection
+scaling_factors = standardise_macro_data!(full_sample, model_args[3]); # model_args[3] ≡ drifts_selection
 
 # Setup `estim`
 estim = DFMSettings(Y, lags, model_args..., λ, α, β; model_kwargs...);
