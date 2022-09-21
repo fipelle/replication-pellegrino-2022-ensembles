@@ -57,7 +57,7 @@ full_sample = permutedims(full_sample);
 λ, α, β = (1.25, 0.50, 1.25);
 lags = 12;
 compute_ep_cycle=true;
-n_series = length(tickers); # the tickers are incomplete - i need to check what's missing (TBD)
+n_series = length(tickers);
 model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices, false);
 
 # Standardise data
