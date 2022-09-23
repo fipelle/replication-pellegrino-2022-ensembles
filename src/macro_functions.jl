@@ -52,14 +52,10 @@ function transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dat
     deleteat!(data_vintages, ind_problematic_release);
 
     # Update tickers accordingly (`tickers` is always <= `new_tickers` in length)
+    empty!(tickers);
     new_tickers = names(data_vintages[end])[2:end];
-    deleteat!(tickers, findfirst(tickers .== "PCEPI"));
     for i in axes(new_tickers, 1)
-        if i <= length(tickers)
-            tickers[i] = new_tickers[i];
-        else
-            push!(tickers, new_tickers[i]);
-        end
+        push!(tickers, new_tickers[i]);
     end
 end
 
