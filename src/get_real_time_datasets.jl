@@ -39,9 +39,9 @@ function get_fred_vintages(tickers::Array{String,1}, frequencies::Array{String,1
 
         # Get data from FRED
         df_ticker = get_data(f, ticker, frequency=frequency; fred_options...).data;
-        # TBC: do we want to have a try-catch within a for loop to try a few times to get the data from fred?
+        # TBD: do we want to have a try-catch within a for loop to try a few times to get the data from fred?
 
-        # Keep columns that can be aligned with the DataFrame computed by `get_local_vintages(...)`
+        # Keep columns compatible with DataFrames constructed by `get_local_vintages(...)`
         df_ticker = df_ticker[!, [:realtime_start, :date, :value]];
 
         # Set reference dates to eop in order to correctly align mixed frequency vintages
@@ -68,7 +68,13 @@ function get_fred_vintages(tickers::Array{String,1}, frequencies::Array{String,1
             # Find rows for the entries corresponding to the first reference date
             ind_first_reference_date = findall(df_ticker[!,:date] .== minimum(df_ticker[!,:date]));
             
-            # Check whether there is a base effect to remove in the first place
+            #=
+            Check whether there is a base effect to remove in the first place.
+            - Note that right now the code adjusts the data if there are multiple entries for the first reference date.
+              This implies that the code should be generalised (TBD) to handle peculiar cases in which the first reference
+              date is excluded at source from all vintages except one. 
+            =#
+            
             if length(ind_first_reference_date) > 1
             
                 # Compute corresponding SubDataFrame
@@ -78,15 +84,15 @@ function get_fred_vintages(tickers::Array{String,1}, frequencies::Array{String,1
                     error("The effect of the base year cannot be removed in $(ticker) with the current approach. Try changing observation_start to a more recent date or set rm_base_year_effect to false for $(ticker).");
                 end
 
-                # Compute adjustment factors
+                # Compute adjustment factors (i.e., use the latest base year)
                 adjustment_factors = sub_df_ticker[end,:value] ./ sub_df_ticker[!,:value];
-
+                
                 # Loop over every release date
                 for release_date in unique(df_ticker[!,:realtime_start])
 
                     # Current adjustment factor
                     adjustment_factor = adjustment_factors[findlast(sub_df_ticker[!,:realtime_start] .<= release_date)];
-
+                    
                     # Apply adjustment
                     df_ticker[df_ticker[!,:realtime_start] .== release_date, :value] .*= adjustment_factor;
                 end
@@ -134,6 +140,8 @@ function get_local_vintages(tickers::Array{String,1}, data::Array{Union{Missing,
     if n_releases != size(release_dates,1);
         error("The reference dates are not correctly aligned with the releases");
     end
+
+    @warn("`get_local_vintages(...)` is experimental!");
 
     # Memory pre-allocation for final output
     df = DataFrame();
@@ -226,32 +234,38 @@ function get_vintages_array(df::DataFrame, sampling_frequency::String)
 
     # Loop over the releases
     for i=1:n_releases
-        #=
-        if i == 1 || mod(i, 100) == 0 || i == n_releases
-            @info("Build vintage $i (out of $(n_releases))");
-        end
-        =#
 
         # Current release (only new observations and revisions)
         ind_release = findall(df[!,:release_dates] .== unique_release_dates[i]);
         df_release = df[ind_release, 2:end];
         sort!(df_release, :reference_dates);
 
+        # Initial data vintage
         if i == 1
-            # Current complete data vintage
             df_vintage = df_release;
-
+        
+        # Following vintages
         else
-            # Revisions and new_observations
+            
+            #=
+            Revisions and new observations
+            - `df_revisions` includes revisions to points in time observed in previous vintages. This broad definition includes data revisions and advanced measurements (i.e, new observations) referring to previously observed points in time.
+            - `df_new_observations` includes observations for points in time not observed in previous vintages.
+            =#
+            
             df_revisions = semijoin(df_release, df_vintage, on=:reference_dates);
             df_new_observations = antijoin(df_release, df_vintage, on=:reference_dates);
+            
+            # Update `df_vintage` inplace with the data revisions (if any) looping over each reference period in `df_revisions`
+            for df_revision in eachrow(df_revisions)
 
-            # Update df_vintage inplace with the data revisions (if any)
-            for revision in eachrow(df_revisions)
-                ind_revision = @views findfirst(df_vintage[!,:reference_dates] .== revision[:reference_dates]);
-                for ticker in eachindex(revision)
-                    if (ticker != :reference_dates) && ~ismissing(revision[ticker])
-                        df_vintage[ind_revision, ticker] = revision[ticker];
+                # Alignment point between `df_revision` and `df_vintage`
+                row_to_revise = findfirst(view(df_vintage, !, :reference_dates) .== df_revision[:reference_dates]);
+
+                # Revise each observed entry/ticker in `df_revision`
+                for ticker in eachindex(df_revision)
+                    if (ticker != :reference_dates) && ~ismissing(df_revision[ticker])
+                        df_vintage[row_to_revise, ticker] = df_revision[ticker];
                     end
                 end
             end

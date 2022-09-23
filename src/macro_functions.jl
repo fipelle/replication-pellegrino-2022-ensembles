@@ -1,9 +1,70 @@
+using Infiltrator;
+
 """
-    get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, n_cons_prices::Int64)
+    transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String}, n_cons_prices::Int64)
+
+Remove `:PCEPI` from the data vintages, after having used it for deflating the series indicated in tickers_to_deflate.
+"""
+function transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String}, n_cons_prices::Int64)
+
+    # Compute reference value to the first obs. of the last PCEPI vintage
+    first_obs_last_vintage_PCEPI = data_vintages[end][1, :PCEPI]; # this is used for removing base year effects in previous vintages
+
+    # Loop over every data vintage
+    for i in axes(data_vintages, 1)
+
+        # Pointer
+        vintage = data_vintages[i];
+
+        # Rescale PCE deflator
+        if ismissing(vintage[1, :PCEPI])
+            error("Base year effect cannot be removed from PCEPI"); # TBC: this line could be generalised further - not needed for the current empirical application
+        end
+        vintage[!, :PCEPI] ./= vintage[1, :PCEPI];
+        vintage[!, :PCEPI] .*= first_obs_last_vintage_PCEPI;
+
+        # Custom real variables
+        for ticker in Symbol.(tickers_to_deflate)
+
+            # Deflate
+            vintage[!, ticker] ./= vintage[!, :PCEPI];
+            vintage[!, ticker] .*= 100;
+
+            # Rename
+            rename!(vintage, (ticker => Symbol("R$(ticker)")));
+        end
+
+        # Remove PCEPI
+        select!(vintage, Not(:PCEPI));
+
+        # Compute YoY% for all prices
+        for ticker in Symbol.(tickers[end-n_cons_prices:end])
+            vintage[13:end, ticker] .= 100*(vintage[13:end, ticker] ./ vintage[1:end-12, ticker] .- 1);
+        end
+
+        # Remove first 12 observations (consequence of taking the YoY% transformation for all prices)
+        deleteat!(vintage, 1:12);
+    end
+
+    # Remove problematic ALFRED data vintages for PCEPI
+    ind_problematic_release = findfirst(release_dates .== Date("2009-08-04")); # PCEPI is incorrectly recorded at that date in ALFRED
+    deleteat!(release_dates, ind_problematic_release);
+    deleteat!(data_vintages, ind_problematic_release);
+
+    # Update tickers accordingly (`tickers` is always <= `new_tickers` in length)
+    empty!(tickers);
+    new_tickers = names(data_vintages[end])[2:end];
+    for i in axes(new_tickers, 1)
+        push!(tickers, new_tickers[i]);
+    end
+end
+
+"""
+    get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, n_cons_prices::Int64, use_rw_and_i2_trends::Bool)
 
 Return DFM args, kwargs and coordinates_params_rescaling for extracting the business cycle from the macro data of interest.
 """
-function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, n_cons_prices::Int64)
+function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, n_cons_prices::Int64, use_rw_and_i2_trends::Bool)
 
     # DFM cycle setup
     if compute_ep_cycle
@@ -15,8 +76,12 @@ function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, 
 
     # DFM trend setup
     n_trends = n_series-n_cons_prices+1;
-    trends_skeleton = Matrix(1.0I, n_trends, n_trends);
-    trends_skeleton = [trends_skeleton; zeros(n_cons_prices-1, n_trends-1) 1.0];
+    
+    # Setup `trends_skeleton`
+    trends_skeleton = Matrix(1.0I, n_trends, n_trends);                          # idiosyncratic trends for all series
+    trends_skeleton = [trends_skeleton; zeros(n_cons_prices-1, n_trends-1) 1.0]; # common trend between cpi and core cpi inflation
+
+    # Setup `coordinates_params_rescaling` for trend inflation
     coordinates_params_rescaling = Vector{Vector{Int64}}(undef, n_cons_prices);
     lin_coordinates_params_rescaling = LinearIndices(trends_skeleton)[end-n_cons_prices+1:end, end];
     for i=1:n_cons_prices
@@ -26,6 +91,9 @@ function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, 
 
     # DFM drift setup
     drifts_selection = vcat(false, true, true, true, [false for i=1:n_trends-4]...) |> BitArray{1};
+    if ~use_rw_and_i2_trends
+        drifts_selection[drifts_selection .== 0] .= 1; # use i2 trends only
+    end
 
     # Build `model_args` and `model_kwargs`
     model_args = (trends_skeleton, cycles_skeleton, drifts_selection, trends_free_params, cycles_free_params);
@@ -36,11 +104,30 @@ function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, 
 end
 
 """
+    standardise_macro_data!(macro_data::JMatrix{Float64}, drifts_selection::BitVector)
+
+Standardise macroeconomic data.
+"""
+function standardise_macro_data!(macro_data::JMatrix{Float64}, drifts_selection::BitVector)
+
+    # Compute scaling factors
+    scaling_factors = [compute_scaling_factor(macro_data[i, :], drifts_selection[i]==0) for i in axes(macro_data, 1)];
+    
+    # Adjust `macro_data`
+    macro_data ./= scaling_factors;
+
+    # Return `scaling_factors`
+    return scaling_factors;
+end
+
+"""
     get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}})
 
 Get trend-cycle model structure.
 """
 function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}})
+
+    error("This must be upgraded to support the new standardisation function etc.");
 
     # Standardise data
     std_diff_data = std_skipmissing(diff(data, dims=2));
