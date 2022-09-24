@@ -118,7 +118,7 @@ function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hy
     std_diff_data = zeros(size(data, 1));
 
     # Aggregate data
-    for i=1:n_aggregates
+    for i in axes(data, 1)
         coordinates_trends = findall(view(trends_skeleton, i, :) .!= 0);
         max_order = maximum(view(drifts_selection, coordinates_trends)); # either 1 (smooth trend) or 0 (random walk)
         std_diff_data[i] = compute_scaling_factor(data[i, :], max_order==0);
