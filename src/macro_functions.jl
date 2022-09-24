@@ -110,8 +110,6 @@ Get trend-cycle model structure.
 """
 function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}})
 
-    error("This must be upgraded to support the new standardisation function etc.");
-
     # Retrieve arguments
     trends_skeleton = model_args[1];
     drifts_selection = model_args[3];
