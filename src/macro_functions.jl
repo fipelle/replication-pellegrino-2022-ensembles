@@ -104,23 +104,6 @@ function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, 
 end
 
 """
-    standardise_macro_data!(macro_data::JMatrix{Float64}, drifts_selection::BitVector)
-
-Standardise macroeconomic data.
-"""
-function standardise_macro_data!(macro_data::JMatrix{Float64}, drifts_selection::BitVector)
-
-    # Compute scaling factors
-    scaling_factors = [compute_scaling_factor(macro_data[i, :], drifts_selection[i]==0) for i in axes(macro_data, 1)];
-    
-    # Adjust `macro_data`
-    macro_data ./= scaling_factors;
-
-    # Return `scaling_factors`
-    return scaling_factors;
-end
-
-"""
     get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}})
 
 Get trend-cycle model structure.
