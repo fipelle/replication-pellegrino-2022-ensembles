@@ -61,6 +61,6 @@ n_series = length(tickers);
 model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices, false);
 
 # Run ecm
-estim, std_diff_data = get_tc_structure(full_sample, [λ; α; β], model_args, model_kwargs, coordinates_params_rescaling);
+estim, std_diff_data = get_tc_structure(full_sample, [lags; λ; α; β], model_args, model_kwargs, coordinates_params_rescaling);
 sspace = ecm(estim);
 @info("Time after run: $(now())");
