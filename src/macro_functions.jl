@@ -129,8 +129,20 @@ function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hy
 
     error("This must be upgraded to support the new standardisation function etc.");
 
-    # Standardise data
-    std_diff_data = std_skipmissing(diff(data, dims=2));
+    # Retrieve arguments
+    trends_skeleton = model_args[1];
+    drifts_selection = model_args[3];
+
+    # Initialise `std_diff_data`
+    std_diff_data = zeros(size(data, 1));
+
+    # Aggregate data
+    for i=1:n_aggregates
+        coordinates_trends = findall(view(trends_skeleton, i, :) .!= 0);
+        max_order = maximum(view(drifts_selection, coordinates_trends)); # either 1 (smooth trend) or 0 (random walk)
+        std_diff_data[i] = compute_scaling_factor(data[i, :], max_order==0);
+    end
+
     zscored_data = data ./ std_diff_data;
 
     # Build estim
