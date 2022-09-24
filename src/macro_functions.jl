@@ -115,7 +115,7 @@ function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hy
     drifts_selection = model_args[3];
 
     # Initialise `std_diff_data`
-    std_diff_data = zeros(size(data, 1));
+    std_diff_data = zeros(size(data, 1), 1); # the final `, 1` is needed to run MessyTimeSeriesOptim.rescale_estim_params!(...) since it expects a matrix of floats
 
     # Aggregate data
     for i in axes(data, 1)
