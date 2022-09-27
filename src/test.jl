@@ -60,18 +60,7 @@ compute_ep_cycle=true;
 n_series = length(tickers);
 model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices, false);
 
-# Standardise data
-scaling_factors = standardise_macro_data!(full_sample, model_args[3]); # model_args[3] ≡ drifts_selection
-
-# Setup `estim`
-estim = DFMSettings(Y, lags, model_args..., λ, α, β; model_kwargs...);
-
-# Update `trends_skeleton` to account for the scaling factors
-estim.trends_skeleton ./= scaling_factors;
-
-# Delete potentially large temporary variables
-full_sample = nothing;
-
 # Run ecm
+estim, std_diff_data = get_tc_structure(full_sample, [lags; λ; α; β], model_args, model_kwargs, coordinates_params_rescaling);
 sspace = ecm(estim);
 @info("Time after run: $(now())");

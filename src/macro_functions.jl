@@ -104,33 +104,26 @@ function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, 
 end
 
 """
-    standardise_macro_data!(macro_data::JMatrix{Float64}, drifts_selection::BitVector)
-
-Standardise macroeconomic data.
-"""
-function standardise_macro_data!(macro_data::JMatrix{Float64}, drifts_selection::BitVector)
-
-    # Compute scaling factors
-    scaling_factors = [compute_scaling_factor(macro_data[i, :], drifts_selection[i]==0) for i in axes(macro_data, 1)];
-    
-    # Adjust `macro_data`
-    macro_data ./= scaling_factors;
-
-    # Return `scaling_factors`
-    return scaling_factors;
-end
-
-"""
     get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}})
 
 Get trend-cycle model structure.
 """
 function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}})
 
-    error("This must be upgraded to support the new standardisation function etc.");
+    # Retrieve arguments
+    trends_skeleton = model_args[1];
+    drifts_selection = model_args[3];
 
-    # Standardise data
-    std_diff_data = std_skipmissing(diff(data, dims=2));
+    # Initialise `std_diff_data`
+    std_diff_data = zeros(size(data, 1), 1); # the final `, 1` is needed to run MessyTimeSeriesOptim.rescale_estim_params!(...) since it expects a matrix of floats
+
+    # Aggregate data
+    for i in axes(data, 1)
+        coordinates_trends = findall(view(trends_skeleton, i, :) .!= 0);
+        max_order = maximum(view(drifts_selection, coordinates_trends)); # either 1 (smooth trend) or 0 (random walk)
+        std_diff_data[i] = compute_scaling_factor(data[i, :], max_order==0);
+    end
+
     zscored_data = data ./ std_diff_data;
 
     # Build estim
