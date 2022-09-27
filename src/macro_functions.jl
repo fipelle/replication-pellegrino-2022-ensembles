@@ -1,5 +1,3 @@
-using Infiltrator;
-
 """
     transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String}, n_cons_prices::Int64)
 
