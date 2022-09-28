@@ -65,22 +65,19 @@ trends_skeleton, cycles_skeleton, drifts_selection, trends_free_params, cycles_f
 n_trends = length(drifts_selection);
 non_stationary_skeleton = vcat([ifelse(drifts_selection[i], [1.0; 0.0; 2.0; 0.0], [1.0; 0.0]) for i=1:n_trends]...);
 ind_trends = findall(non_stationary_skeleton .== 1);
-ind_drifts = findall(non_stationary_skeleton .== 2);
-last_trend = findlast(non_stationary_skeleton .== 1)+1;
-ind_idio_cycles = collect(last_trend+1:2:last_trend+n_series*2);
-ind_bc_cycle = last_trend+n_series*2+1;
+last_non_stationary = length(non_stationary_skeleton);
+ind_idio_cycles = collect(last_non_stationary+1:2:last_non_stationary+n_series*2);
+ind_bc_cycle = last_non_stationary+n_series*2+1;
 ind_ep_cycle = ind_bc_cycle+estim.lags+1;
 
 # States of interest
 smoothed_trends = std_diff_data .* (sspace.B[:, ind_trends]*smoothed_states[ind_trends, :]);
-smoothed_drifts = std_diff_data[findall(drifts_selection)] .* smoothed_states[ind_drifts, :];
 smoothed_idio_cycles = std_diff_data .* smoothed_states[ind_idio_cycles, :];
 smoothed_bc_cycle = std_diff_data .* (sspace.B[:, ind_bc_cycle:ind_bc_cycle+estim.lags-1]*smoothed_states[ind_bc_cycle:ind_bc_cycle+estim.lags-1, :]);
 smoothed_ep_cycle = std_diff_data .* (sspace.B[:, ind_ep_cycle:end-1]*smoothed_states[ind_ep_cycle:end-1, :]);
 
 # Custom rescaling
 smoothed_trends ./= custom_rescaling;
-smoothed_drifts ./= custom_rescaling[2:4];
 smoothed_idio_cycles ./= custom_rescaling;
 smoothed_bc_cycle ./= custom_rescaling;
 smoothed_ep_cycle ./= custom_rescaling;
