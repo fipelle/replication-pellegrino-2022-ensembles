@@ -49,23 +49,11 @@ transform_vintages_array!(data_vintages, release_dates, tickers, tickers_to_defl
 Setup single tc run
 =#
 
-# Selection sample
-full_sample = data_vintages[end][!,2:end] |> JMatrix{Float64};
-full_sample = permutedims(full_sample);
-
 # DFMSettings base options
 λ, α, β = (1.25, 0.50, 1.25);
 lags = 12;
 compute_ep_cycle=true;
 n_series = length(tickers);
-model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices, false);
-
-# Run ecm
-#=
-estim, std_diff_data = get_tc_structure(full_sample, [lags; λ; α; β], model_args, model_kwargs, coordinates_params_rescaling);
-sspace = ecm(estim);
-@info("Time after run: $(now())");
-=#
 
 # Setup run
 iis_data = data_vintages[end-58][!, 2:end] |> JMatrix{Float64}; # up to 2019-12-31
@@ -73,7 +61,7 @@ iis_data = permutedims(iis_data);
 optimal_hyperparams = [lags; λ; α; β];
 
 # Estimate DFM
-model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices, true);
+model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices, false);
 estim, std_diff_data = get_tc_structure(iis_data, optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
 
 # Run Kalman routines
@@ -136,6 +124,12 @@ push!(PGFPlotsX.CUSTOM_PREAMBLE,
             }"
 )
 
+#=
+--------------------------------------------------------------------------------------------------------------------------------
+Historical decomposition
+--------------------------------------------------------------------------------------------------------------------------------
+=#
+
 # Manual input
 axs = Array{Any}(undef, 9);
 
@@ -161,6 +155,48 @@ for i=1:9
         {},
         Plot({no_marks, style={"densely dotted", "thick"}, color="black"}, Table([ref_dates_grid, smoothed_bc_cycle[i,:]+smoothed_ep_cycle[i,:]+smoothed_idio_cycles[i,:]])),
         ifelse(i==1, ifelse(compute_ep_cycle, Legend("Business cycle", "Energy price cycle", "Idiosyncratic cycle", "Total cycle"), Legend("Business cycle", "Idiosyncratic cycle", "Total cycle")), {}),
+    );
+end
+
+fig = @pgf TikzPicture(GroupPlot(
+    { group_style = {group_size="3 by 3", vertical_sep="60pt", horizontal_sep="60pt"},
+      no_markers,
+      legend_pos="north west",
+      height="150pt",
+      width="225pt"
+    },
+    axs...),
+    raw"\node at ($(group c2r3) + (0,-3.25cm)$) {\ref{grouplegend}};",
+);
+
+#=
+--------------------------------------------------------------------------------------------------------------------------------
+Trends
+--------------------------------------------------------------------------------------------------------------------------------
+=#
+
+# Manual input
+axs = Array{Any}(undef, 9);
+
+for i=1:9
+    legend_style_content = ifelse(i==1, raw"{column sep = 10pt, legend columns = -1, legend to name = grouplegend, draw=none,}", "");
+    axs[i] = @pgf Axis(
+        {   
+            "bar width=0.1pt",
+            date_coordinates_in = "x",
+            xticklabel=raw"{\year}",
+            title = names(data_vintages[1])[i+1],
+            grid = "both",
+            xmin=ref_dates_grid[1],
+            xmax=ref_dates_grid[end],
+            ylabel=units[i],
+            "ylabel absolute",
+            legend_style=legend_style_content,
+        },
+
+        Plot({no_marks, style={"thick"}, color="black"}, Table([ref_dates_grid, iis_data[i,:]./custom_rescaling[i]])),
+        Plot({no_marks, style={"thick"}, color="blue"}, Table([ref_dates_grid, smoothed_trends[i,:]])),
+        ifelse(i==1, Legend("Data", "Trend"), {});
     );
 end
 
