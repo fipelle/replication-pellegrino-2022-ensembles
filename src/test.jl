@@ -94,6 +94,7 @@ smoothed_bc_cycle = std_diff_data .* (sspace.B[:, ind_bc_cycle:ind_bc_cycle+esti
 smoothed_ep_cycle = std_diff_data .* (sspace.B[:, ind_ep_cycle:end-1]*smoothed_states[ind_ep_cycle:end-1, :]);
 
 # Custom rescaling
+iis_data ./= custom_rescaling;
 smoothed_trends ./= custom_rescaling;
 smoothed_idio_cycles ./= custom_rescaling;
 smoothed_bc_cycle ./= custom_rescaling;
@@ -194,7 +195,7 @@ for i=1:9
             legend_style=legend_style_content,
         },
 
-        Plot({no_marks, style={"thick"}, color="black"}, Table([ref_dates_grid, iis_data[i,:]./custom_rescaling[i]])),
+        Plot({no_marks, style={"thick"}, color="black"}, Table([ref_dates_grid, iis_data[i,:]])),
         Plot({no_marks, style={"thick"}, color="blue"}, Table([ref_dates_grid, smoothed_trends[i,:]])),
         ifelse(i==1, Legend("Data", "Trend"), {});
     );
