@@ -1,9 +1,16 @@
-"""
-    transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String}, n_cons_prices::Int64)
+struct DataTransformations
+    ticker1::Symbol
+    ticker2::Symbol
+    new_ticker::Symbol
+    operator::Function
+end
 
-Remove `:PCEPI` from the data vintages, after having used it for deflating the series indicated in tickers_to_deflate.
 """
-function transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String}, n_cons_prices::Int64)
+    transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String}, tickers_to_transform::Vector{DataTransformations}, n_cons_prices::Int64)
+
+Remove `:PCEPI` from the data vintages, after having used it for deflating the series indicated in `tickers_to_deflate` and applied the transformations in `tickers_to_transform`.
+"""
+function transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dates::Vector{Date}, tickers::Vector{String}, tickers_to_deflate::Vector{String}, tickers_to_transform::Vector{DataTransformations}, n_cons_prices::Int64)
 
     # Compute reference value to the first obs. of the last PCEPI vintage
     first_obs_last_vintage_PCEPI = data_vintages[end][1, :PCEPI]; # this is used for removing base year effects in previous vintages
@@ -30,6 +37,19 @@ function transform_vintages_array!(data_vintages::Vector{DataFrame}, release_dat
 
             # Rename
             rename!(vintage, (ticker => Symbol("R$(ticker)")));
+        end
+
+        # Custom transformations
+        for transformation in tickers_to_transform
+
+            # Apply transformation and replace entries in `transformation.ticker1`
+            vintage[!, transformation.ticker1] = transformation.operator(vintage[!, transformation.ticker1], vintage[!, transformation.ticker2]);
+            
+            # Rename `transformation.ticker1` to `transformation(:new_ticker)`
+            rename!(vintage, (transformation.ticker1 => transformation.new_ticker));
+
+            # Remove `transformation.ticker2`
+            select!(vintage, Not(transformation.ticker2));
         end
 
         # Remove PCEPI
