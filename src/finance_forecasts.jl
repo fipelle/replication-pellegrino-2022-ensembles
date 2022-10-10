@@ -1,8 +1,6 @@
 # Libraries
 using Distributed;
-@everywhere include("./TimeSeriesEnsembles.jl");
 @everywhere using MessyTimeSeriesOptim;
-@everywhere using Main.TimeSeriesEnsembles;
 using CSV, DataFrames, Dates, FileIO, JLD, Logging;
 using LinearAlgebra, Statistics, MessyTimeSeries;
 include("./macro_functions.jl");
@@ -24,37 +22,11 @@ include_factor_augmentation = parse(Bool, ARGS[3]);
 # Use BC breakdown, rather than the raw estimate
 use_refined_BC = parse(Bool, ARGS[4]);
 
-# Subsample size (percentage of obs. taken/removed)
-subsample = parse(Float64, ARGS[5]); # if NaN and AJK, the code computes d̂
-
-# Subsampling function
-subsampling_function_id = parse(Int64, ARGS[6]);
-
-if subsampling_function_id == 0
-    subsampling_function = nothing;
-    subsampling_mnemonic = "pair_bootstrap";
-    tree_subsampling_method = 1;
-
-elseif subsampling_function_id == 1
-    subsampling_function = moving_block_bootstrap;
-    subsampling_mnemonic = "block_bootstrap";
-    tree_subsampling_method = 2;
-    @warn("Untested subsampling_function_id!")
-
-elseif subsampling_function_id == 2
-    subsampling_function = block_jackknife;
-    subsampling_mnemonic = "block_jackknife";
-    tree_subsampling_method = 2;
-    @warn("Untested subsampling_function_id!")
-
-elseif subsampling_function_id == 3
-    subsampling_function = artificial_jackknife;
-    subsampling_mnemonic = "artificial_jackknife";
-    tree_subsampling_method = 2;
-end
+# Regression model
+regression_model = parse(Int64, ARGS[5])
 
 # Output folder
-log_folder_path = ARGS[7];
+log_folder_path = ARGS[6];
 
 # Fixed number of max_samples for artificial jackknife
 max_samples = 1000;
@@ -63,9 +35,7 @@ max_samples = 1000;
 Setup logger
 =#
 
-subsample_str = replace("$(ifelse(isnan(subsample), "default", subsample))", "."=>"_");
-
-io = open("$(log_folder_path)/$(subsampling_mnemonic)/status_equity_index_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(subsample_str).txt", "w+");
+io = open("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC).txt", "w+");
 global_logger(ConsoleLogger(io));
 
 #=
@@ -77,10 +47,7 @@ First log entries
 @info("equity_index_id: $(equity_index_id)");
 @info("include_factor_augmentation: $(include_factor_augmentation)");
 @info("use_refined_BC: $(use_refined_BC)");
-@info("subsample: $(subsample)");
-@info("subsampling_function_id: $(subsampling_function_id)");
-@info("subsampling_mnemonic: $(subsampling_mnemonic)");
-@info("tree_subsampling_method: $(tree_subsampling_method)")
+@info("regression_model: $(regression_model)")
 @info("log_folder_path: $(log_folder_path)");
 @info("max_samples: $(max_samples)");
 flush(io);
