@@ -74,11 +74,11 @@ DFM settings
 
 # Series classification (WARNING: manual input required)
 n_series = 9;
-n_cycles = 7; # shortcut to denote the variable that identifies the energy cycle
-n_cons_prices = 2;
+n_cycles = 7;      # shortcut to denote the variable that identifies the energy cycle (i.e., `WTISPLC` after having included it prior to `PCEPI`)
+n_cons_prices = 2; # number of consumer price indices in the dataset
 
 # Get settings
-model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices);
+model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices, false);
 
 #=
 Hyperparameter selection for aggregator
@@ -94,20 +94,14 @@ The selection sample is the first vintage in `data_vintages`.
 first_data_vintage = data_vintages[1]; # default: data up to 2005-01-31
 
 # Selection sample dimensions
-estimation_sample_length = fld(size(first_data_vintage,1), 2);
+estimation_sample_length = fld(size(first_data_vintage, 1), 2);
 validation_sample_length = size(first_data_vintage, 1) - estimation_sample_length;
 
 @info("------------------------------------------------------------")
 @info("Generate subsamples");
 
-# Pair bootstrap samples - post ssm
-if tree_subsampling_method == 1
-    ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples_bootstrap(first_data_vintage, equity_index, estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
-
-# Custom subsampling methods - pre ssm (i.e., block bootstrap, block jackknife, artificial delete-d jackknife)
-elseif tree_subsampling_method == 2
-    ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples_custom(io, subsampling_function, subsample, first_data_vintage, equity_index, estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
-end
+# Get selection and validation samples
+ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples_bootstrap(first_data_vintage, equity_index, estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
 
 # Compute validation error
 grid_min_samples_leaf = collect(range(5, stop=50, length=10)) |> Vector{Int64};
@@ -190,7 +184,6 @@ distance_from_reference_month = Dates.value.(equity_index_ref_oos-release_dates_
 save("$(log_folder_path)/$(subsampling_mnemonic)/equity_index_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(subsample_str).jld", 
     Dict("equity_index_id" => equity_index_id,
          "subsampling_mnemonic" => subsampling_mnemonic,
-         "tree_subsampling_method" => tree_subsampling_method, 
          "include_factor_augmentation" => include_factor_augmentation,
          "use_refined_BC" => use_refined_BC,
          "ecm_kalman_settings" => ecm_kalman_settings,
