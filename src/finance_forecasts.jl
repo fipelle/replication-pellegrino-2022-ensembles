@@ -181,15 +181,14 @@ equity_index_ref_oos = equity_index_ref[1+offset_vintages:end];
 distance_from_reference_month = Dates.value.(equity_index_ref_oos-release_dates_oos);
 
 # Store output
-save("$(log_folder_path)/$(subsampling_mnemonic)/equity_index_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(subsample_str).jld", 
+save("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC).jld", 
     Dict("equity_index_id" => equity_index_id,
-         "subsampling_mnemonic" => subsampling_mnemonic,
+         "regression_model" => regression_model,
          "include_factor_augmentation" => include_factor_augmentation,
          "use_refined_BC" => use_refined_BC,
          "ecm_kalman_settings" => ecm_kalman_settings,
          "ecm_std_diff_data" => ecm_std_diff_data,
          "business_cycle_position" => business_cycle_position,
-         #"trees" => trees, # comment out if you want to store the trees as well -> very large jld output files
          "optimal_hyperparams" => optimal_hyperparams, 
          "errors_validation" => errors_validation, 
          "grid_min_samples_leaf" => grid_min_samples_leaf, 
