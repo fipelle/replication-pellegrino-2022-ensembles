@@ -117,7 +117,7 @@ function get_selection_samples(macro_data::JMatrix{Float64}, equity_index::Float
     # Initial settings
     lags = Int64(optimal_hyperparams[1]);
 
-    # Memory pre-allocation for output
+    # Memory pre-allocation for output arrays
     estimation_samples_target = Vector{FloatVector}();
     estimation_samples_predictors = Vector{FloatMatrix}();
     validation_samples_target = Vector{Float64}();
@@ -195,16 +195,6 @@ function get_selection_samples(macro_data::JMatrix{Float64}, equity_index::Float
     return sspace_full, std_diff_data_full, business_cycle_position, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors;
 end
 
-function get_selection_samples(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-
-    # Extract data from `macro_vintage`
-    macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
-    macro_data = permutedims(macro_data);
-
-    # Return selection samples
-    return get_selection_samples(macro_data, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
-end
-
 """
     get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
 
@@ -212,90 +202,18 @@ Return selection samples compatible with tree aggregators based on pair bootstra
 """
 function get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
     
+    # Extract data from `macro_vintage`
+    macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
+    macro_data = permutedims(macro_data);
+    
     # Train and validation samples
-    ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples(macro_vintage, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
+    ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples(macro_data, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
 
     # Estimation and selection samples
     training_samples_target = estimation_samples_target[1];
     training_samples_predictors = estimation_samples_predictors[1];
     selection_samples_target = estimation_samples_target[2];
     selection_samples_predictors = estimation_samples_predictors[2];
-
-    # Return output
-    return ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors;
-end
-
-"""
-    get_selection_samples_custom(io::IOStream, subsampling_function::Function, subsample::Float64, macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-
-Return selection samples compatible with tree aggregators based on custom subsampling methods.
-"""
-function get_selection_samples_custom(io::IOStream, subsampling_function::Function, subsample::Float64, macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-
-    # Build macro_finance_data for estimation
-    macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
-    macro_finance_data = [equity_index[1:size(macro_data,1)+1]'; macro_data' missing.*ones(n_series)];
-
-    # Compute d̂ when needed 
-    if (subsampling_function === artificial_jackknife) && isnan(subsample)
-        n, T = size(@view macro_finance_data[:, 1:end-1]);
-        d = optimal_d(n, T);
-        subsample = d/(n*T);
-    end
-
-    # Construct subsamples
-    if subsampling_function === block_jackknife
-        custom_data = subsampling_function(macro_finance_data, subsample); # use all block jackknife samples
-    else
-        custom_data = subsampling_function(macro_finance_data, subsample, max_samples);
-    end
-
-    # Memory pre-allocation
-    ecm_kalman_settings = Vector{KalmanSettings}();
-    ecm_std_diff_data = Vector{FloatMatrix}();
-    training_samples_target = Vector{FloatVector}();
-    selection_samples_target = Vector{FloatVector}();
-    training_samples_predictors = Vector{FloatMatrix}();
-    selection_samples_predictors = Vector{FloatMatrix}();
-
-    # Loop over subsamples
-    for i in axes(custom_data, 3)
-        
-        @info("Subsample $(i) out of $(size(custom_data, 3))");
-        flush(io);
-
-        # Retrieve data
-        current_equity_index = custom_data[1, :, i];
-        current_macro_data = custom_data[2:end, 1:end-1, i];
-
-        # Start from first not missing
-        first_not_missing = findfirst(.~ismissing.(current_equity_index));
-        if max(first_not_missing, sum(ismissing.(current_equity_index))) > 0.6*length(current_equity_index)
-            @info("- Skipping subsample $(i): not enough datapoints");
-            continue; # i.e., not enough datapoints -> skip subsample
-        else
-            current_equity_index = current_equity_index[first_not_missing:end];
-            current_macro_data = current_macro_data[:, first_not_missing:end];
-        end
-
-        # Interpolate `current_equity_index` missings with an expanding one-sided mean
-        for t in findall(ismissing.(current_equity_index))
-            current_equity_index[t] = mean_skipmissing(current_equity_index[1:t-1]);
-        end
-        current_equity_index = current_equity_index |> FloatVector;
-        
-        # Update training and selection samples
-        sspace_full, std_diff_data_full, _, estimation_samples_target, estimation_samples_predictors, _, _ = get_selection_samples(current_macro_data, current_equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
-        push!(ecm_kalman_settings, sspace_full);
-        push!(ecm_std_diff_data, std_diff_data_full);
-        push!(training_samples_target, estimation_samples_target[1]);
-        push!(selection_samples_target, estimation_samples_target[2]);
-        push!(training_samples_predictors, estimation_samples_predictors[1]);
-        push!(selection_samples_predictors, estimation_samples_predictors[2]);
-    end
-
-    # Train and validation samples
-    _, _, business_cycle_position, _, _, validation_samples_target, validation_samples_predictors = get_selection_samples(first_data_vintage, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
 
     # Return output
     return ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors;
