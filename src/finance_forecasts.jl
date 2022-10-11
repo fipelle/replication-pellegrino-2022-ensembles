@@ -4,6 +4,7 @@ using Distributed;
 using CSV, DataFrames, Dates, FileIO, JLD, Logging;
 using LinearAlgebra, Statistics, MessyTimeSeries;
 include("./macro_functions.jl");
+using Infiltrator;
 include("./finance_functions.jl");
 
 #=
@@ -106,7 +107,7 @@ validation_sample_length = size(first_data_vintage, 1) - estimation_sample_lengt
 @info("Partition data into training, selection and validation samples");
 
 # Get selection and validation samples
-ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples_bootstrap(first_data_vintage, equity_index, estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
+ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors = get_macro_data_partitions(first_data_vintage, equity_index, estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
 
 # Compute validation error
 grid_min_samples_leaf = collect(range(5, stop=50, length=10)) |> Vector{Int64};
