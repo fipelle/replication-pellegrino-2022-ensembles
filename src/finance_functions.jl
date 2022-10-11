@@ -108,26 +108,107 @@ get_target_and_predictors_forecasting(current_business_cycle_matrix::FloatMatrix
 
 """
     get_selection_samples(macro_data::JMatrix{Float64}, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-    get_selection_samples(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
 
 Return selection samples. `macro_data` and `equity_index` are in the format required by MessyTimeSeries.jl.
 """
 function get_selection_samples(macro_data::JMatrix{Float64}, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
 
+    # Kalman filter iteration
+    kfilter!(sspace, status);
+    kfilter!(sspace_full, status_full);
+
+    if t >= lags
+
+        populate_business_cycle_matrix!(business_cycle_matrix, business_cycle_position, std_diff_data, sspace, status, t, lags);
+        populate_business_cycle_matrix!(business_cycle_matrix_full, business_cycle_position, std_diff_data_full, sspace_full, status_full, t, lags);
+
+        if t >= t0
+
+            @infiltrate
+
+            # Input data based on model estimated with data up to t0 (included)
+            current_equity_index = permutedims(equity_index[1:t]);
+            next_equity_index_obs = equity_index[t+1]; # Float64
+            current_business_cycle_matrix = business_cycle_matrix[:, 1:t-lags+1]; # also include most recent obs.
+
+            @infiltrate
+
+            # Build predictors: estimation sample
+            if (t == t0) || (t == sspace.Y.T) # it fills the `estimation_samples_*` only twice - in the first case using the `current_business_cycle_matrix`, in the second case through `business_cycle_matrix_full`
+
+                @infiltrate
+
+                # Get target and predictors (estimation)
+                if t == t0
+                    estimation_target, estimation_predictors = get_target_and_predictors_estimation(current_business_cycle_matrix, current_equity_index, lags, include_factor_augmentation, use_refined_BC);
+                else
+                    # `business_cycle_matrix_full` is fine since t == sspace.Y.T
+                    estimation_target, estimation_predictors = get_target_and_predictors_estimation(business_cycle_matrix_full, current_equity_index, lags, include_factor_augmentation, use_refined_BC);
+                end
+
+                @infiltrate
+
+                # Update output
+                push!(estimation_samples_target, estimation_target);
+                push!(estimation_samples_predictors, estimation_predictors);
+            end
+
+            # Build predictors: validation sample
+            if t != t0 # it fills the validation samples at each time period after `t0`
+                
+                @infiltrate
+
+                # Get target and predictors (forecasting)
+                validation_target, validation_predictors = get_target_and_predictors_forecasting(current_business_cycle_matrix, current_equity_index, next_equity_index_obs, lags, include_factor_augmentation, use_refined_BC);
+
+                # Update output
+                push!(validation_samples_target, validation_target);
+                push!(validation_samples_predictors, validation_predictors);
+
+                @infiltrate
+
+            end
+        end
+    end
+end
+
+"""
+    get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
+
+Return selection samples compatible with tree aggregators based on pair bootstrap.
+"""
+function get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
+    
+    # Extract data from `macro_vintage`
+    macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
+    macro_data = permutedims(macro_data);
+    
+    @infiltrate
+
     # Initial settings
     lags = Int64(optimal_hyperparams[1]);
 
-    # Memory pre-allocation for output arrays
-    estimation_samples_target = Vector{FloatVector}();
-    estimation_samples_predictors = Vector{FloatMatrix}();
+    #=
+    Memory pre-allocation for output arrays
+    Note: the `estimation_samples_*` contain both the training (first entry) and selection (second entry) samples
+    =#
+
+    training_samples_target = Vector{FloatVector}();
+    training_samples_predictors = Vector{FloatMatrix}();
+    selection_samples_target = Vector{FloatVector}();
+    selection_samples_predictors = Vector{FloatMatrix}();
     validation_samples_target = Vector{Float64}();
     validation_samples_predictors = Vector{FloatVector}();
+
+    @infiltrate
 
     # Get trend-cycle model structure (estimated with data up to t0 - included)
     estim, std_diff_data = get_tc_structure(macro_data[:, 1:t0], optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
 
     # Get trend-cycle model structure (estimated with full data)
     estim_full, std_diff_data_full = get_tc_structure(macro_data, optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
+
+    @infiltrate
 
     # Estimate the trend-cycle model with (estimated with data up to t0 - included)
     sspace = ecm(estim, output_sspace_data=macro_data./std_diff_data);
@@ -142,78 +223,12 @@ function get_selection_samples(macro_data::JMatrix{Float64}, equity_index::Float
     # Business cycle position in sspace
     business_cycle_position = findlast(sspace.B[1,:] .== 1);
 
+    @infiltrate
+
     # Compute the business cycle vintages required to structure the estimation and validation samples in a pseudo out-of-sample fashion
     for t in axes(macro_data, 2)
-
-        # Kalman filter iteration
-        kfilter!(sspace, status);
-        kfilter!(sspace_full, status_full);
-
-        if t >= lags
-
-            populate_business_cycle_matrix!(business_cycle_matrix, business_cycle_position, std_diff_data, sspace, status, t, lags);
-            populate_business_cycle_matrix!(business_cycle_matrix_full, business_cycle_position, std_diff_data_full, sspace_full, status_full, t, lags);
-
-            if t >= t0
-
-                # Input data based on model estimated with data up to t0 (included)
-                current_equity_index = permutedims(equity_index[1:t]);
-                next_equity_index_obs = equity_index[t+1]; # Float64
-                current_business_cycle_matrix = business_cycle_matrix[:, 1:t-lags+1]; # also include most recent obs.
-
-                # Build predictors: estimation sample
-                if (t == t0) || (t == sspace.Y.T)
-
-                    # Get target and predictors (estimation)
-                    if t == t0
-                        estimation_target, estimation_predictors = get_target_and_predictors_estimation(current_business_cycle_matrix, current_equity_index, lags, include_factor_augmentation, use_refined_BC);
-                    else
-                        # `business_cycle_matrix_full` is fine since t == sspace.Y.T
-                        estimation_target, estimation_predictors = get_target_and_predictors_estimation(business_cycle_matrix_full, current_equity_index, lags, include_factor_augmentation, use_refined_BC);
-                    end
-
-                    # Update output
-                    push!(estimation_samples_target, estimation_target);
-                    push!(estimation_samples_predictors, estimation_predictors);
-                end
-
-                # Build predictors: validation sample
-                if t != t0
-
-                    # Get target and predictors (forecasting)
-                    validation_target, validation_predictors = get_target_and_predictors_forecasting(current_business_cycle_matrix, current_equity_index, next_equity_index_obs, lags, include_factor_augmentation, use_refined_BC);
-
-                    # Update output
-                    push!(validation_samples_target, validation_target);
-                    push!(validation_samples_predictors, validation_predictors);
-                end
-            end
-        end
+        update_macro_data_partitions!(t, TBA)
     end
-
-    # Return output 
-    return sspace_full, std_diff_data_full, business_cycle_position, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors;
-end
-
-"""
-    get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-
-Return selection samples compatible with tree aggregators based on pair bootstrap.
-"""
-function get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-    
-    # Extract data from `macro_vintage`
-    macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
-    macro_data = permutedims(macro_data);
-    
-    # Train and validation samples
-    ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples(macro_data, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
-
-    # Estimation and selection samples
-    training_samples_target = estimation_samples_target[1];
-    training_samples_predictors = estimation_samples_predictors[1];
-    selection_samples_target = estimation_samples_target[2];
-    selection_samples_predictors = estimation_samples_predictors[2];
 
     # Return output
     return ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors;
