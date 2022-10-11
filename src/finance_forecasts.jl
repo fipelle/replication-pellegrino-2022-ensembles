@@ -35,7 +35,7 @@ max_samples = 1000;
 Setup logger
 =#
 
-io = open("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC).txt", "w+");
+io = open("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(compute_ep_cycle).txt", "w+");
 global_logger(ConsoleLogger(io));
 
 #=
@@ -68,14 +68,19 @@ optimal_hyperparams = candidates[:, argmin(errors)];
 df_equity_index = CSV.read("./data/wilshire_selection.csv", DataFrame);
 equity_index = df_equity_index[:, 1+equity_index_id];
 
+# `df_equity_index` must have one time period more than `data_vintages[end]`
+if size(df_equity_index, 1) != 1+size(data_vintages[end], 1)
+    error("`df_equity_index` must have one time period more than `data_vintages[end]`!");
+end
+
 #=
 DFM settings
 =#
 
 # Series classification (WARNING: manual input required)
-n_series = 9;
-n_cycles = 7;      # shortcut to denote the variable that identifies the energy cycle (i.e., `WTISPLC` after having included it prior to `PCEPI`)
-n_cons_prices = 2; # number of consumer price indices in the dataset
+n_series = size(data_vintages[end], 2)-1; # `-1` excludes the reference dates column
+n_cycles = 7;                             # shortcut to denote the variable that identifies the energy cycle (i.e., `WTISPLC` after having included it prior to `PCEPI`)
+n_cons_prices = 2;                        # number of consumer price indices in the dataset
 
 # Get settings
 model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices, false);
@@ -98,7 +103,7 @@ estimation_sample_length = fld(size(first_data_vintage, 1), 2);
 validation_sample_length = size(first_data_vintage, 1) - estimation_sample_length;
 
 @info("------------------------------------------------------------")
-@info("Generate subsamples");
+@info("Partition data into training, selection and validation samples");
 
 # Get selection and validation samples
 ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples_bootstrap(first_data_vintage, equity_index, estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
@@ -181,11 +186,12 @@ equity_index_ref_oos = equity_index_ref[1+offset_vintages:end];
 distance_from_reference_month = Dates.value.(equity_index_ref_oos-release_dates_oos);
 
 # Store output
-save("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC).jld", 
+save("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(compute_ep_cycle).jld", 
     Dict("equity_index_id" => equity_index_id,
          "regression_model" => regression_model,
          "include_factor_augmentation" => include_factor_augmentation,
          "use_refined_BC" => use_refined_BC,
+         "compute_ep_cycle" => compute_ep_cycle,
          "ecm_kalman_settings" => ecm_kalman_settings,
          "ecm_std_diff_data" => ecm_std_diff_data,
          "business_cycle_position" => business_cycle_position,
