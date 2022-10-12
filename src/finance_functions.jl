@@ -142,7 +142,7 @@ function update_validation_samples!(
     @infiltrate
     validation_target, validation_predictors = get_target_and_predictors_forecasting(current_business_cycle_matrix, current_equity_index, next_equity_index_obs, lags, include_factor_augmentation, use_refined_BC);
     @infiltrate
-    
+
     push!(validation_samples_target, validation_target);
     push!(validation_samples_predictors, validation_predictors);
 end
@@ -170,10 +170,10 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     Note: the `estimation_samples_*` contain both the training (first entry) and selection (second entry) samples
     =#
 
-    training_samples_target = Vector{FloatVector}();
-    training_samples_predictors = Vector{FloatMatrix}();
-    selection_samples_target = Vector{FloatVector}();
-    selection_samples_predictors = Vector{FloatMatrix}();
+    training_samples_target = FloatVector[];
+    training_samples_predictors = FloatMatrix[];
+    selection_samples_target = FloatVector[];
+    selection_samples_predictors = FloatMatrix[];
     validation_samples_target = Vector{Float64}();
     validation_samples_predictors = Vector{FloatVector}();
 
