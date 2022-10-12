@@ -107,69 +107,44 @@ end
 get_target_and_predictors_forecasting(current_business_cycle_matrix::FloatMatrix, current_equity_index::FloatMatrix, next_equity_index_obs::Float64, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool) = get_target_and_predictors_forecasting(current_business_cycle_matrix[:, end], current_equity_index, next_equity_index_obs, lags, include_factor_augmentation, use_refined_BC);
 
 """
-    get_selection_samples(macro_data::JMatrix{Float64}, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-
-Return selection samples. `macro_data` and `equity_index` are in the format required by MessyTimeSeries.jl.
 """
-function get_selection_samples(macro_data::JMatrix{Float64}, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
+function update_estimation_samples!(
+    estimation_samples_target, 
+    estimation_samples_predictors, 
+    business_cycle_matrix_selection::FloatMatrix, 
+    current_equity_index::Int64, 
+    lags::Int64, 
+    include_factor_augmentation::Bool, 
+    use_refined_BC::Bool
+    )
+    
+    @infiltrate
+    estimation_target, estimation_predictors = get_target_and_predictors_estimation(business_cycle_matrix_selection, current_equity_index, lags, include_factor_augmentation, use_refined_BC);
+    @infiltrate
 
-    # Kalman filter iteration
-    kfilter!(sspace, status);
-    kfilter!(sspace_full, status_full);
+    push!(estimation_samples_target, estimation_target);
+    push!(estimation_samples_predictors, estimation_predictors);
+end
 
-    if t >= lags
+"""
+"""
+function update_validation_samples!(
+    validation_samples_target, 
+    validation_samples_predictors, 
+    current_business_cycle_matrix::FloatMatrix, 
+    current_equity_index::Int64, 
+    next_equity_index_obs::Float64, 
+    lags::Int64, 
+    include_factor_augmentation::Bool, 
+    use_refined_BC::Bool
+    )
 
-        populate_business_cycle_matrix!(business_cycle_matrix, business_cycle_position, std_diff_data, sspace, status, t, lags);
-        populate_business_cycle_matrix!(business_cycle_matrix_full, business_cycle_position, std_diff_data_full, sspace_full, status_full, t, lags);
-
-        if t >= t0
-
-            @infiltrate
-
-            # Input data based on model estimated with data up to t0 (included)
-            current_equity_index = permutedims(equity_index[1:t]);
-            next_equity_index_obs = equity_index[t+1]; # Float64
-            current_business_cycle_matrix = business_cycle_matrix[:, 1:t-lags+1]; # also include most recent obs.
-
-            @infiltrate
-
-            # Build predictors: estimation sample
-            if (t == t0) || (t == sspace.Y.T) # it fills the `estimation_samples_*` only twice - in the first case using the `current_business_cycle_matrix`, in the second case through `business_cycle_matrix_full`
-
-                @infiltrate
-
-                # Get target and predictors (estimation)
-                if t == t0
-                    estimation_target, estimation_predictors = get_target_and_predictors_estimation(current_business_cycle_matrix, current_equity_index, lags, include_factor_augmentation, use_refined_BC);
-                else
-                    # `business_cycle_matrix_full` is fine since t == sspace.Y.T
-                    estimation_target, estimation_predictors = get_target_and_predictors_estimation(business_cycle_matrix_full, current_equity_index, lags, include_factor_augmentation, use_refined_BC);
-                end
-
-                @infiltrate
-
-                # Update output
-                push!(estimation_samples_target, estimation_target);
-                push!(estimation_samples_predictors, estimation_predictors);
-            end
-
-            # Build predictors: validation sample
-            if t != t0 # it fills the validation samples at each time period after `t0`
-                
-                @infiltrate
-
-                # Get target and predictors (forecasting)
-                validation_target, validation_predictors = get_target_and_predictors_forecasting(current_business_cycle_matrix, current_equity_index, next_equity_index_obs, lags, include_factor_augmentation, use_refined_BC);
-
-                # Update output
-                push!(validation_samples_target, validation_target);
-                push!(validation_samples_predictors, validation_predictors);
-
-                @infiltrate
-
-            end
-        end
-    end
+    @infiltrate
+    validation_target, validation_predictors = get_target_and_predictors_forecasting(current_business_cycle_matrix, current_equity_index, next_equity_index_obs, lags, include_factor_augmentation, use_refined_BC);
+    @infiltrate
+    
+    push!(validation_samples_target, validation_target);
+    push!(validation_samples_predictors, validation_predictors);
 end
 
 """
@@ -179,6 +154,8 @@ Return macro data partitions compatible with tree ensembles.
 """
 function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
     
+    @infiltrate
+
     # Extract data from `macro_vintage`
     macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
     macro_data = permutedims(macro_data);
@@ -227,7 +204,71 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
 
     # Compute the business cycle vintages required to structure the estimation and validation samples in a pseudo out-of-sample fashion
     for t in axes(macro_data, 2)
-        update_macro_data_partitions!(t, TBA)
+        
+        # Kalman filter iteration
+        kfilter!(sspace, status);
+        kfilter!(sspace_full, status_full);
+
+        # Populate business cycle matrices
+        if t >= lags
+            populate_business_cycle_matrix!(business_cycle_matrix, business_cycle_position, std_diff_data, sspace, status, t, lags);
+            populate_business_cycle_matrix!(business_cycle_matrix_full, business_cycle_position, std_diff_data_full, sspace_full, status_full, t, lags);
+        end
+
+        if t >= t0
+
+            @infiltrate
+
+            # Input data based on model estimated with data up to t0 (included)
+            current_equity_index = permutedims(equity_index[1:t]);
+            next_equity_index_obs = equity_index[t+1]; # Float64
+            current_business_cycle_matrix = business_cycle_matrix[:, 1:t-lags+1]; # also include most recent obs.
+
+            @infiltrate
+            
+            # Update `training_samples_target` and `training_samples_predictors`
+            if t == t0
+                update_estimation_samples!(
+                    training_samples_target, 
+                    training_samples_predictors, 
+                    current_business_cycle_matrix,
+                    current_equity_index,
+                    lags, 
+                    include_factor_augmentation, 
+                    use_refined_BC
+                    )
+            
+            # Alternative updates
+            else
+
+                # Update `validation_samples_target` and `validation_samples_predictors`
+                update_validation_samples!(
+                    validation_samples_target, 
+                    validation_samples_predictors, 
+                    current_business_cycle_matrix, 
+                    current_equity_index, 
+                    next_equity_index_obs, 
+                    lags, 
+                    include_factor_augmentation, 
+                    use_refined_BC
+                    )
+
+                # Update `selection_samples_target` and `selection_samples_predictors`
+                if t == sspace.Y.T
+                    update_estimation_samples!(
+                        selection_samples_target, 
+                        selection_samples_predictors, 
+                        business_cycle_matrix_full,
+                        current_equity_index, 
+                        lags, 
+                        include_factor_augmentation, 
+                        use_refined_BC
+                        )
+                end
+            end
+
+            @infiltrate
+        end
     end
 
     # Return output
