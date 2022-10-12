@@ -1,19 +1,46 @@
 """
-    populate_business_cycle_matrix!(business_cycle_matrix::FloatMatrix, business_cycle_position::Int64, std_diff_data::FloatMatrix, sspace::KalmanSettings, status::DynamicKalmanStatus, t::Int64, lags::Int64)
+    populate_factors_matrices!(factors_matrices::Vector{FloatMatrix}, factors_coordinates::IntVector, factors_associated_scaling::FloatVector, sspace::KalmanSettings, status::DynamicKalmanStatus, t::Int64, lags::Int64)
 
-Populate `business_cycle_matrix` to construct the estimation samples.
+Populate `factors_matrices` to construct the data subsamples.
 """
-function populate_business_cycle_matrix!(business_cycle_matrix::FloatMatrix, business_cycle_position::Int64, std_diff_data::FloatMatrix, sspace::KalmanSettings, status::DynamicKalmanStatus, t::Int64, lags::Int64)
+function populate_factors_matrices!(factors_matrices::Vector{FloatMatrix}, factors_coordinates::IntVector, factors_associated_scaling::FloatVector, sspace::KalmanSettings, status::DynamicKalmanStatus, t::Int64, lags::Int64)
 
-    # Compute business_cycle_matrix for t (current and past values)
+    @infiltrate
+
+    # Run smoother and forecast to reconstruct the past, current and expected future value for the factors
     X_sm, P_sm, X0_sm, P0_sm = ksmoother(sspace, status, t-lags+1);
-    for i=1:lags
-        business_cycle_matrix[i, t-lags+1] = X_sm[i][business_cycle_position] .* std_diff_data[1];
-    end
-
     X_fc = kforecast(sspace, status.X_post, lags-1);
-    for i=1:lags-1
-        business_cycle_matrix[i+lags, t-lags+1] = X_fc[i][business_cycle_position] .* std_diff_data[1];
+
+    @infiltrate
+
+    for i in axes(factors_matrices, 1)
+        
+        @infiltrate
+
+        # Convenient pointer
+        current_factor_matrix = factors_matrices[i];
+        current_factor_coordinates = factors_coordinates[i];
+        current_factor_associated_scaling = factors_associated_scaling[i];
+
+        @infiltrate
+
+        # Store smoother and forecast output
+        for j=1:lags-1
+
+            @infiltrate
+
+            current_factor_matrix[j, t-lags+1] = X_sm[j][current_factor_coordinates] * current_factor_associated_scaling;
+            current_factor_matrix[j+lags, t-lags+1] = X_fc[j][current_factor_coordinates] * current_factor_associated_scaling;
+        
+            @infiltrate
+        end
+
+        # Store final smoother output
+        @infiltrate
+
+        current_factor_matrix[lags, t-lags+1] = X_sm[lags][current_factor_coordinates] * current_factor_associated_scaling;
+        
+        @infiltrate
     end
 end
 
@@ -173,12 +200,16 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     # Estimate the trend-cycle model with (estimated with data up to t0 - included)
     sspace = ecm(estim, output_sspace_data=macro_data./std_diff_data); # using the optional keyword argument `output_sspace_data` allows to construct the validation samples
     status = DynamicKalmanStatus();
-    factors_matrix = zeros(2*lags-1, sspace.Y.T-lags+1); # `2*lags-1` denotes the present plus 6 lags (realised) and 6 forward points (expected), sspace.Y.T refers to the full `macro_data` (i.e., not just up to t0) due to the keyword argument discussed above
 
-    # Factors position in sspace
-    factors_coordinates = [findlast(sspace.B[1, :] .== 1)];
+    # Factors data
+    factors_matrices = [zeros(2*lags-1, sspace.Y.T-lags+1)]; # `2*12-1` denotes the present plus 6 lags (realised) and 6 forward points (expected), sspace.Y.T refers to the full `macro_data` (i.e., not just up to t0) due to the keyword argument discussed above
+    factors_coordinates = [findlast(sspace.B[1, :] .== 1)];  # business cycle's coordinates
+    factors_associated_scaling = [std_diff_data[1]];
+
     if compute_ep_cycle
-        push!(factors_coordinates, findlast(sspace.B[n_cycles, :] .== 1));
+        push!(factors_matrices, zeros(2*lags-1, sspace.Y.T-lags+1));
+        push!(factors_coordinates, findlast(sspace.B[n_cycles, :] .== 1)); # energy price cycle's coordinates
+        push!(factors_associated_scaling, std_diff_data[n_cycles]);
     end
 
     @infiltrate
@@ -189,9 +220,9 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
         # Kalman filter iteration
         kfilter!(sspace, status);
 
-        # Populate business cycle matrices
+        # Populate `factors_matrices`
         if t >= lags
-            populate_business_cycle_matrix!(business_cycle_matrix, business_cycle_position, std_diff_data, sspace, status, t, lags);
+            populate_factors_matrices!(factors_matrices, factors_coordinates, factors_associated_scaling, sspace, status, t, lags);
         end
 
         if t >= t0
