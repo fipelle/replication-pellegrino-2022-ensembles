@@ -154,37 +154,29 @@ Return macro data partitions compatible with tree ensembles.
 """
 function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
     
-    @infiltrate
-
     # Extract data from `macro_vintage`
     macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
     macro_data = permutedims(macro_data);
     
-    @infiltrate
-
     # Initial settings
     lags = Int64(optimal_hyperparams[1]);
 
     # Memory pre-allocation for output arrays
-    estimation_samples_target = FloatVector[];
-    estimation_samples_predictors = FloatMatrix[];
-    validation_samples_target = Vector{Float64}();
-    validation_samples_predictors = Vector{FloatVector}();
-
-    @infiltrate
+    estimation_samples_target = FloatVector[];              # TBC this should be equal to equity_index[lags+1:t0]
+    estimation_samples_predictors = FloatMatrix[];          # TBC this should refer to lags:t0-1
+    validation_samples_target = FloatVector[];              # TBC this should be equal to equity_index[t0+1:T] or equity_index[t0+1:T+1]
+    validation_samples_predictors = Vector{FloatVector}();  # TBC this should refer to t0:T-1 or t0:T
 
     # Get trend-cycle model structure (estimated with data up to t0 - included)
     estim, std_diff_data = get_tc_structure(macro_data[:, 1:t0], optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
 
-    @infiltrate
-
     # Estimate the trend-cycle model with (estimated with data up to t0 - included)
-    sspace = ecm(estim, output_sspace_data=macro_data./std_diff_data);
+    sspace = ecm(estim, output_sspace_data=macro_data./std_diff_data); # using the optional keyword argument `output_sspace_data` allows to construct the validation samples
     status = DynamicKalmanStatus();
-    business_cycle_matrix = zeros(2*lags-1, sspace.Y.T-lags+1);
+    business_cycle_matrix = zeros(2*lags-1, sspace.Y.T-lags+1); # `2*lags-1` denotes the present plus 6 lags (realised) and 6 forward points (expected)
 
     # Business cycle position in sspace
-    business_cycle_position = findlast(sspace.B[1,:] .== 1);
+    business_cycle_position = findlast(sspace.B[1, :] .== 1);
 
     @infiltrate
 
