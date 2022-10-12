@@ -148,11 +148,11 @@ function update_validation_samples!(
 end
 
 """
-    get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
+    get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}})
 
 Return macro data partitions compatible with tree ensembles.
 """
-function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
+function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}})
     
     # Extract data from `macro_vintage`
     macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
@@ -173,10 +173,13 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     # Estimate the trend-cycle model with (estimated with data up to t0 - included)
     sspace = ecm(estim, output_sspace_data=macro_data./std_diff_data); # using the optional keyword argument `output_sspace_data` allows to construct the validation samples
     status = DynamicKalmanStatus();
-    business_cycle_matrix = zeros(2*lags-1, sspace.Y.T-lags+1); # `2*lags-1` denotes the present plus 6 lags (realised) and 6 forward points (expected)
+    factors_matrix = zeros(2*lags-1, sspace.Y.T-lags+1); # `2*lags-1` denotes the present plus 6 lags (realised) and 6 forward points (expected), sspace.Y.T refers to the full `macro_data` (i.e., not just up to t0) due to the keyword argument discussed above
 
-    # Business cycle position in sspace
-    business_cycle_position = findlast(sspace.B[1, :] .== 1);
+    # Factors position in sspace
+    factors_coordinates = [findlast(sspace.B[1, :] .== 1)];
+    if compute_ep_cycle
+        push!(factors_coordinates, findlast(sspace.B[n_cycles, :] .== 1));
+    end
 
     @infiltrate
 
