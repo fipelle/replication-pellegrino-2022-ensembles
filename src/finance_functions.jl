@@ -5,18 +5,12 @@ Populate `factors_matrices` to construct the data subsamples.
 """
 function populate_factors_matrices!(factors_matrices::Vector{FloatMatrix}, factors_coordinates::IntVector, factors_associated_scaling::FloatVector, sspace::KalmanSettings, status::DynamicKalmanStatus, t::Int64, lags::Int64)
 
-    @infiltrate
-
     # Run smoother and forecast to reconstruct the past, current and expected future value for the factors
-    X_sm, P_sm, X0_sm, P0_sm = ksmoother(sspace, status, t-lags+1);
-    X_fc = kforecast(sspace, status.X_post, lags-1);
-
-    @infiltrate
-
+    X_sm, P_sm, X0_sm, P0_sm = ksmoother(sspace, status, t-lags+1); # smooth up to time period `t-lags+1` (i.e., 1 in the first call and referring to time t==lags)
+    X_fc = kforecast(sspace, status.X_post, lags-1);                # compute `lags-1` predictions for the states
+    
     for i in axes(factors_matrices, 1)
         
-        @infiltrate
-
         # Convenient pointer
         current_factor_matrix = factors_matrices[i];
         current_factor_coordinates = factors_coordinates[i];
@@ -24,20 +18,16 @@ function populate_factors_matrices!(factors_matrices::Vector{FloatMatrix}, facto
 
         @infiltrate
 
-        # Store smoother and forecast output
+        # Store lags and expectations for the factor
         for j=1:lags-1
 
-            @infiltrate
-
-            current_factor_matrix[j, t-lags+1] = X_sm[j][current_factor_coordinates] * current_factor_associated_scaling;
-            current_factor_matrix[j+lags, t-lags+1] = X_fc[j][current_factor_coordinates] * current_factor_associated_scaling;
-        
+            current_factor_matrix[j, t-lags+1] = X_sm[j][current_factor_coordinates] * current_factor_associated_scaling;       # from j to lags-1 (i.e., 1 to lags-1)
+            current_factor_matrix[j+lags, t-lags+1] = X_fc[j][current_factor_coordinates] * current_factor_associated_scaling;  # from j+lags to 2*lags-1 (i.e., lags+1 to 2*lags-1 - if lags==12 -> 13 to 23 as expected)
+            
             @infiltrate
         end
 
-        # Store final smoother output
-        @infiltrate
-
+        # Store present conditions for the factor
         current_factor_matrix[lags, t-lags+1] = X_sm[lags][current_factor_coordinates] * current_factor_associated_scaling;
         
         @infiltrate
@@ -202,7 +192,7 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     status = DynamicKalmanStatus();
 
     # Factors data
-    factors_matrices = [zeros(2*lags-1, sspace.Y.T-lags+1)]; # `2*12-1` denotes the present plus 6 lags (realised) and 6 forward points (expected), sspace.Y.T refers to the full `macro_data` (i.e., not just up to t0) due to the keyword argument discussed above
+    factors_matrices = [zeros(2*lags-1, sspace.Y.T-lags+1)]; # `2*lags-1` denotes the present plus `lags-1` lags (realised) and `lags-1` forward points (expected), sspace.Y.T refers to the full `macro_data` (i.e., not just up to t0) due to the keyword argument discussed above
     factors_coordinates = [findlast(sspace.B[1, :] .== 1)];  # business cycle's coordinates
     factors_associated_scaling = [std_diff_data[1]];
 
@@ -211,8 +201,6 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
         push!(factors_coordinates, findlast(sspace.B[n_cycles, :] .== 1)); # energy price cycle's coordinates
         push!(factors_associated_scaling, std_diff_data[n_cycles]);
     end
-
-    @infiltrate
 
     # Compute the business cycle vintages required to structure the estimation and validation samples in a pseudo out-of-sample fashion
     for t in axes(macro_data, 2)
