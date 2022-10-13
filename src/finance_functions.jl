@@ -72,92 +72,6 @@ function get_target_and_predictors_estimation(current_business_cycle_matrix::Flo
 end
 
 """
-    get_target_and_predictors_forecasting(last_business_cycle_matrix_col::FloatVector, current_equity_index::FloatMatrix, next_equity_index_obs::Float64, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
-    get_target_and_predictors_forecasting(current_business_cycle_matrix::FloatMatrix, current_equity_index::FloatMatrix, next_equity_index_obs::Float64, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
-
-Return target and predictors for forecasting.
-"""
-function get_target_and_predictors_forecasting(last_business_cycle_matrix_col::FloatVector, current_equity_index::FloatMatrix, next_equity_index_obs::Float64, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
-
-    # Macro
-    predictors_business_cycle = copy(last_business_cycle_matrix_col);
-
-    if use_refined_BC
-
-        # Changes
-        predictors_business_cycle = vcat(predictors_business_cycle, diff(predictors_business_cycle, dims=1));
-
-        if lags > 2
-        
-            # Present vs past (excl. BC_{t} - BC_{t-1} since it is already accounted for in the changes)
-            predictors_business_cycle = vcat(predictors_business_cycle, predictors_business_cycle[lags] .- predictors_business_cycle[1:lags-2]);
-            
-            # Future conditions vs present (excl. BC_{t+1} - BC_{t} since it is already accounted for in the changes)
-            predictors_business_cycle = vcat(predictors_business_cycle, predictors_business_cycle[lags+2:end] .- predictors_business_cycle[lags]);
-        end
-    end
-
-    # Finance
-    predictors_equity_index = current_equity_index[1, end-lags+1:end];
-
-    # Predictors
-    if include_factor_augmentation
-        predictors = vcat(predictors_equity_index, predictors_business_cycle);
-    else
-        predictors = predictors_equity_index;
-    end
-
-    # Outturn
-    outturn = next_equity_index_obs;
-
-    # Return output
-    return outturn, predictors;
-end
-
-get_target_and_predictors_forecasting(current_business_cycle_matrix::FloatMatrix, current_equity_index::FloatMatrix, next_equity_index_obs::Float64, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool) = get_target_and_predictors_forecasting(current_business_cycle_matrix[:, end], current_equity_index, next_equity_index_obs, lags, include_factor_augmentation, use_refined_BC);
-
-"""
-"""
-function update_estimation_samples!(
-    estimation_samples_target, 
-    estimation_samples_predictors, 
-    business_cycle_matrix_selection::FloatMatrix, 
-    current_equity_index::Int64, 
-    lags::Int64, 
-    include_factor_augmentation::Bool, 
-    use_refined_BC::Bool
-    )
-    
-    @infiltrate
-    estimation_target, estimation_predictors = get_target_and_predictors_estimation(business_cycle_matrix_selection, current_equity_index, lags, include_factor_augmentation, use_refined_BC);
-    @infiltrate
-
-    push!(estimation_samples_target, estimation_target);
-    push!(estimation_samples_predictors, estimation_predictors);
-end
-
-"""
-"""
-function update_validation_samples!(
-    validation_samples_target, 
-    validation_samples_predictors, 
-    current_business_cycle_matrix::FloatMatrix, 
-    current_equity_index::Int64, 
-    next_equity_index_obs::Float64, 
-    lags::Int64, 
-    include_factor_augmentation::Bool, 
-    use_refined_BC::Bool
-    )
-
-    @infiltrate
-    validation_target, validation_predictors = get_target_and_predictors_forecasting(current_business_cycle_matrix, current_equity_index, next_equity_index_obs, lags, include_factor_augmentation, use_refined_BC);
-    @infiltrate
-
-    push!(validation_samples_target, validation_target);
-    push!(validation_samples_predictors, validation_predictors);
-end
-
-"""
     get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}})
 
 Return macro data partitions compatible with tree ensembles.
@@ -171,11 +85,12 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     # Initial settings
     lags = Int64(optimal_hyperparams[1]);
 
-    # Memory pre-allocation for output arrays
-    estimation_samples_target = FloatVector[];              # TBC this should be equal to equity_index[lags+1:t0]
-    estimation_samples_predictors = FloatMatrix[];          # TBC this should refer to lags:t0-1
-    validation_samples_target = FloatVector[];              # TBC this should be equal to equity_index[t0+1:T] or equity_index[t0+1:T+1]
-    validation_samples_predictors = Vector{FloatVector}();  # TBC this should refer to t0:T-1 or t0:T
+    # Predictors
+    @infiltrate
+    
+    predictors_matrix = zeros(lags + include_factor_augmentation*(1+compute_ep_cycle)*(2*lags-1), sspace.Y.T-lags+1); # includes both the autoregressive part and the factor augmentation (if any)
+    
+    @infiltrate
 
     # Get trend-cycle model structure (estimated with data up to t0 - included)
     estim, std_diff_data = get_tc_structure(macro_data[:, 1:t0], optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
@@ -201,52 +116,45 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
         # Kalman filter iteration
         kfilter!(sspace, status);
 
-        # Populate `factors_matrices`
         if t >= lags
-            populate_factors_matrices!(factors_matrices, factors_coordinates, factors_associated_scaling, sspace, status, t, lags);
-        end
-
-        if t >= t0
-
+            
             @infiltrate
 
-            # Input data based on model estimated with data up to t0 (included)
-            current_equity_index = permutedims(equity_index[1:t]);
-            next_equity_index_obs = equity_index[t+1]; # Float64
-            current_business_cycle_matrix = business_cycle_matrix[:, 1:t-lags+1]; # also include most recent obs.
-
-            @infiltrate
-            
-            # Update `estimation_samples_target` and `estimation_samples_predictors`
-            if t == t0
-                update_estimation_samples!(
-                    estimation_samples_target, 
-                    estimation_samples_predictors, 
-                    current_business_cycle_matrix,
-                    current_equity_index,
-                    lags, 
-                    include_factor_augmentation, 
-                    use_refined_BC
-                    )
-            
-            # Update `validation_samples_target` and `validation_samples_predictors`
-            else
-                update_validation_samples!(
-                    validation_samples_target, 
-                    validation_samples_predictors, 
-                    current_business_cycle_matrix, 
-                    current_equity_index, 
-                    next_equity_index_obs, 
-                    lags, 
-                    include_factor_augmentation, 
-                    use_refined_BC
-                    )
+            # Add autoregressive part of the predictors to `predictors_matrix`
+            for j=1:lags
+                predictors_matrix[j, t-lags+1] = equity_index[t-lags+j];
             end
+
+            @infiltrate # the `populate_factors_matrices!(...)` has been debugged
+
+            # Populate `factors_matrices` (the first reference data is the time period t==lags)
+            populate_factors_matrices!(factors_matrices, factors_coordinates, factors_associated_scaling, sspace, status, t, lags);
+
+            @infiltrate # the `populate_factors_matrices!(...)` has been debugged
+
+            # Generate `transformed_factor_vectors` (i.e., transform the latest column in the entries of `factors_matrices`)
+            transformed_factor_vectors = transform_latest_in_factors_matrices(factors_matrices, t, lags, use_refined_BC);
+
+            @infiltrate
+
+            # Add transformed_factor_matrices to predictors
+            predictors_matrix[lags+1:end, t-lags+1] = vcat(transformed_factor_vectors...);
 
             @infiltrate
         end
     end
 
+    # Split sample on the basis of t0
+    # -> TBA
+    
+    #=
+    # Memory pre-allocation for output arrays
+    estimation_samples_target = FloatVector[];              # TBC this should be equal to equity_index[lags+1:t0]
+    estimation_samples_predictors = FloatMatrix[];          # TBC this should refer to lags:t0-1
+    validation_samples_target = FloatVector[];              # TBC this should be equal to equity_index[t0+1:T] or equity_index[t0+1:T+1]
+    validation_samples_predictors = Vector{FloatVector}();  # TBC this should refer to t0:T-1 or t0:T
+    =#
+    
     # Return output
     return estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors;
 end
