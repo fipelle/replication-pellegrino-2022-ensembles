@@ -8,7 +8,7 @@ function populate_factors_matrices!(factors_matrices::Vector{FloatMatrix}, facto
     # Run smoother and forecast to reconstruct the past, current and expected future value for the factors
     X_sm, P_sm, X0_sm, P0_sm = ksmoother(sspace, status, t-lags+1); # smooth up to time period `t-lags+1` (i.e., 1 in the first call and referring to time t==lags)
     X_fc = kforecast(sspace, status.X_post, lags-1);                # compute `lags-1` predictions for the states
-    
+
     for i in axes(factors_matrices, 1)
         
         # Convenient pointer
@@ -16,21 +16,14 @@ function populate_factors_matrices!(factors_matrices::Vector{FloatMatrix}, facto
         current_factor_coordinates = factors_coordinates[i];
         current_factor_associated_scaling = factors_associated_scaling[i];
 
-        @infiltrate
-
         # Store lags and expectations for the factor
         for j=1:lags-1
-
             current_factor_matrix[j, t-lags+1] = X_sm[j][current_factor_coordinates] * current_factor_associated_scaling;       # from j to lags-1 (i.e., 1 to lags-1)
             current_factor_matrix[j+lags, t-lags+1] = X_fc[j][current_factor_coordinates] * current_factor_associated_scaling;  # from j+lags to 2*lags-1 (i.e., lags+1 to 2*lags-1 - if lags==12 -> 13 to 23 as expected)
-            
-            @infiltrate
         end
-
+        
         # Store present conditions for the factor
         current_factor_matrix[lags, t-lags+1] = X_sm[lags][current_factor_coordinates] * current_factor_associated_scaling;
-        
-        @infiltrate
     end
 end
 
