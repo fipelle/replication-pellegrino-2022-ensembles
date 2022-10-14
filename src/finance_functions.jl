@@ -35,8 +35,12 @@ Return a transformed version of the latest non-zero columns in `factors_matrices
 """
 function transform_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64)
 
+    @infiltrate
+
     # Pre-allocate container for output
     transformed_factor_vectors = Vector{FloatVector}();
+
+    @infiltrate
 
     # Loop over factor selection
     for i in axes(factors_matrices, 1)
@@ -46,21 +50,31 @@ function transform_latest_in_factors_matrices(factors_matrices::Vector{FloatMatr
 
         # Initialise `transformed_current_factor_vector` with the latest non-zero column in `current_factor_matrix`
         transformed_current_factor_vector = current_factor_matrix[:, t-lags+1];
-        
+
+        @infiltrate
+
         # Changes
         transformed_current_factor_vector = vcat(transformed_current_factor_vector, diff(transformed_current_factor_vector, dims=1));
+
+        @infiltrate
 
         if lags > 2
             
             # Present vs past (excl. BC_{t} - BC_{t-1} since it is already accounted for in the changes)
             transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags, :]' .- transformed_current_factor_vector[1:lags-2, :]);
-            
+
+            @infiltrate
+
             # Future conditions vs present (excl. BC_{t+1} - BC_{t} since it is already accounted for in the changes)
             transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags+2:2*lags-1, :] .- transformed_current_factor_vector[lags, :]');
+
+            @infiltrate
         end
 
         # Update output
         push!(transformed_factor_vectors, transformed_current_factor_vector);
+
+        @infiltrate
     end
 
     # Return output
@@ -75,6 +89,9 @@ Return the latest non-zero columns in `factors_matrices`.
 get_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64) = [factors_matrices[i][:, t-lags+1] for i in axes(factors_matrices, 1)];
 
 """
+    populate_predictors_matrix!(predictors_matrix::FloatMatrix, equity_index::FloatVector, transformed_factor_vectors::Vector{FloatVector}, t::Int64, lags::Int64)
+
+Populate `predictors_matrix` to construct the data subsamples.
 """
 function populate_predictors_matrix!(predictors_matrix::FloatMatrix, equity_index::FloatVector, transformed_factor_vectors::Vector{FloatVector}, t::Int64, lags::Int64)
     
