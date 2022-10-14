@@ -135,46 +135,57 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     predictors_matrix = zeros(lags + include_factor_augmentation*(1+compute_ep_cycle)*(2*lags-1), sspace.Y.T-lags+1); # includes both the autoregressive part and the factor augmentation (if any)
     
     @infiltrate
+    
+    if include_factor_augmentation
 
-    # Get trend-cycle model structure (estimated with data up to t0 - included)
-    estim, std_diff_data = get_tc_structure(macro_data[:, 1:t0], optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
+        # Get trend-cycle model structure (estimated with data up to t0 - included)
+        estim, std_diff_data = get_tc_structure(macro_data[:, 1:t0], optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
 
-    # Estimate the trend-cycle model with (estimated with data up to t0 - included)
-    sspace = ecm(estim, output_sspace_data=macro_data./std_diff_data); # using the optional keyword argument `output_sspace_data` allows to construct the validation samples
-    status = DynamicKalmanStatus();
+        # Estimate the trend-cycle model with (estimated with data up to t0 - included)
+        sspace = ecm(estim, output_sspace_data=macro_data./std_diff_data); # using the optional keyword argument `output_sspace_data` allows to construct the validation samples
+        status = DynamicKalmanStatus();
 
-    # Factors data
-    factors_matrices = [zeros(2*lags-1, sspace.Y.T-lags+1)]; # `2*lags-1` denotes the present plus `lags-1` lags (realised) and `lags-1` forward points (expected), sspace.Y.T refers to the full `macro_data` (i.e., not just up to t0) due to the keyword argument discussed above
-    factors_coordinates = [findlast(sspace.B[1, :] .== 1)];  # business cycle's coordinates
-    factors_associated_scaling = [std_diff_data[1]];
+        # Factors data
+        factors_matrices = [zeros(2*lags-1, sspace.Y.T-lags+1)]; # `2*lags-1` denotes the present plus `lags-1` lags (realised) and `lags-1` forward points (expected), sspace.Y.T refers to the full `macro_data` (i.e., not just up to t0) due to the keyword argument discussed above
+        factors_coordinates = [findlast(sspace.B[1, :] .== 1)];  # business cycle's coordinates
+        factors_associated_scaling = [std_diff_data[1]];
 
-    if compute_ep_cycle
-        push!(factors_matrices, zeros(2*lags-1, sspace.Y.T-lags+1));
-        push!(factors_coordinates, findlast(sspace.B[n_cycles, :] .== 1)); # energy price cycle's coordinates
-        push!(factors_associated_scaling, std_diff_data[n_cycles]);
+        if compute_ep_cycle
+            push!(factors_matrices, zeros(2*lags-1, sspace.Y.T-lags+1));
+            push!(factors_coordinates, findlast(sspace.B[n_cycles, :] .== 1)); # energy price cycle's coordinates
+            push!(factors_associated_scaling, std_diff_data[n_cycles]);
+        end
     end
 
     # Compute the business cycle vintages required to structure the estimation and validation samples in a pseudo out-of-sample fashion
     for t in axes(macro_data, 2)
         
         # Kalman filter iteration
-        kfilter!(sspace, status);
+        if include_factor_augmentation
+            kfilter!(sspace, status);
+        end
 
         if t >= lags
             
-            # Populate `factors_matrices` (the first reference data is the time period t==lags)
-            populate_factors_matrices!(factors_matrices, factors_coordinates, factors_associated_scaling, sspace, status, t, lags);
+            if include_factor_augmentation
 
-            @infiltrate # the `populate_factors_matrices!(...)` has been debugged
+                # Populate `factors_matrices` (the first reference data is the time period t==lags)
+                populate_factors_matrices!(factors_matrices, factors_coordinates, factors_associated_scaling, sspace, status, t, lags);
 
-            # Generate `transformed_factor_vectors` (i.e., transform the latest column in the entries of `factors_matrices`)
-            if use_refined_BC
-                transformed_factor_vectors = transform_latest_in_factors_matrices(factors_matrices, t, lags);
+                @infiltrate # the `populate_factors_matrices!(...)` has been debugged
+
+                # Generate `transformed_factor_vectors` (i.e., transform the latest column in the entries of `factors_matrices`)
+                if use_refined_BC
+                    transformed_factor_vectors = transform_latest_in_factors_matrices(factors_matrices, t, lags);
+                else
+                    transformed_factor_vectors = get_latest_in_factors_matrices(factors_matrices, t, lags);
+                end
+
+                @infiltrate
+            
             else
-                transformed_factor_vectors = get_latest_in_factors_matrices(factors_matrices, t, lags);
+                transformed_factor_vectors = [];
             end
-
-            @infiltrate
 
             # Populate `predictors_matrix` (the first reference data is the time period t==lags)
             populate_predictors_matrix!(predictors_matrix, equity_index, transformed_factor_vectors, t, lags);
