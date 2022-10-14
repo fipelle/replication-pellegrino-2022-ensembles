@@ -9,9 +9,10 @@ function populate_factors_matrices!(factors_matrices::Vector{FloatMatrix}, facto
     X_sm, P_sm, X0_sm, P0_sm = ksmoother(sspace, status, t-lags+1); # smooth up to time period `t-lags+1` (i.e., 1 in the first call and referring to time t==lags)
     X_fc = kforecast(sspace, status.X_post, lags-1);                # compute `lags-1` predictions for the states
 
+    # Loop over factor selection
     for i in axes(factors_matrices, 1)
         
-        # Convenient pointer
+        # Convenient pointers
         current_factor_matrix = factors_matrices[i];
         current_factor_coordinates = factors_coordinates[i];
         current_factor_associated_scaling = factors_associated_scaling[i];
@@ -28,47 +29,42 @@ function populate_factors_matrices!(factors_matrices::Vector{FloatMatrix}, facto
 end
 
 """
-    get_target_and_predictors_estimation(current_business_cycle_matrix::FloatMatrix, current_equity_index::FloatMatrix, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
+    transform_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64)
 
 Return target and predictors for estimation.
 """
-function get_target_and_predictors_estimation(current_business_cycle_matrix::FloatMatrix, current_equity_index::FloatMatrix, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
+function transform_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64)
 
-    # Macro
-    predictors_business_cycle = current_business_cycle_matrix[:, 1:end-1];
+    # Pre-allocate container for output
+    transformed_factor_vectors = Vector{FloatVector}();
 
-    if use_refined_BC
+    # Loop over factor selection
+    for i in axes(factors_matrices, 1)
 
+        # Convenient pointer
+        current_factor_matrix = factors_matrices[i];
+
+        # Initialise `transformed_current_factor_vector` with the latest non-zero column in `current_factor_matrix`
+        transformed_current_factor_vector = current_factor_matrix[:, t-lags+1];
+        
         # Changes
-        predictors_business_cycle = vcat(predictors_business_cycle, diff(predictors_business_cycle, dims=1));
+        transformed_current_factor_vector = vcat(transformed_current_factor_vector, diff(transformed_current_factor_vector, dims=1));
 
         if lags > 2
-        
+            
             # Present vs past (excl. BC_{t} - BC_{t-1} since it is already accounted for in the changes)
-            predictors_business_cycle = vcat(predictors_business_cycle, predictors_business_cycle[lags, :]' .- predictors_business_cycle[1:lags-2, :]);
+            transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags, :]' .- transformed_current_factor_vector[1:lags-2, :]);
             
             # Future conditions vs present (excl. BC_{t+1} - BC_{t} since it is already accounted for in the changes)
-            predictors_business_cycle = vcat(predictors_business_cycle, predictors_business_cycle[lags+2:end, :] .- predictors_business_cycle[lags, :]');
+            transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags+2:end, :] .- transformed_current_factor_vector[lags, :]');
         end
+
+        # Update output
+        push!(transformed_factor_vectors, transformed_current_factor_vector);
     end
-
-    # Finance
-    target, predictors_equity_index = lag(current_equity_index, lags);
-    predictors_equity_index = reverse(predictors_equity_index, dims=1); # for internal consistency with `predictors_business_cycle`
-
-    # Predictors
-    if include_factor_augmentation
-        predictors = vcat(predictors_equity_index, predictors_business_cycle);
-    else
-        predictors = predictors_equity_index;
-    end
-
-    # Transpose target and predictors to match DecisionTree
-    target = target[:];
-    predictors = permutedims(predictors);
 
     # Return output
-    return target, predictors;
+    return transformed_factor_vectors;
 end
 
 """
@@ -118,13 +114,6 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
 
         if t >= lags
             
-            @infiltrate
-
-            # Add autoregressive part of the predictors to `predictors_matrix`
-            for j=1:lags
-                predictors_matrix[j, t-lags+1] = equity_index[t-lags+j];
-            end
-
             @infiltrate # the `populate_factors_matrices!(...)` has been debugged
 
             # Populate `factors_matrices` (the first reference data is the time period t==lags)
@@ -133,10 +122,19 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
             @infiltrate # the `populate_factors_matrices!(...)` has been debugged
 
             # Generate `transformed_factor_vectors` (i.e., transform the latest column in the entries of `factors_matrices`)
-            transformed_factor_vectors = transform_latest_in_factors_matrices(factors_matrices, t, lags, use_refined_BC);
+            if use_refined_BC
+                transformed_factor_vectors = transform_latest_in_factors_matrices(factors_matrices, t, lags);
+            else
+                transformed_factor_vectors = vcat([factors_matrices[i][:, t-lags+1] for i in axes(factors_matrices, 1)]...);
+            end
 
             @infiltrate
 
+            # Add autoregressive part of the predictors to `predictors_matrix`
+            for j=1:lags
+                predictors_matrix[j, t-lags+1] = equity_index[t-lags+j];
+            end
+            
             # Add transformed_factor_matrices to predictors
             predictors_matrix[lags+1:end, t-lags+1] = vcat(transformed_factor_vectors...);
 
