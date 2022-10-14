@@ -31,7 +31,7 @@ end
 """
     transform_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64)
 
-Return target and predictors for estimation.
+Return a transformed version of the latest non-zero columns in `factors_matrices`.
 """
 function transform_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64)
 
@@ -65,6 +65,37 @@ function transform_latest_in_factors_matrices(factors_matrices::Vector{FloatMatr
 
     # Return output
     return transformed_factor_vectors;
+end
+
+"""
+    get_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64)
+
+Return the latest non-zero columns in `factors_matrices`.
+"""
+get_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64) = [factors_matrices[i][:, t-lags+1] for i in axes(factors_matrices, 1)];
+
+"""
+"""
+function populate_predictors_matrix!(predictors_matrix::FloatMatrix, equity_index::FloatVector, transformed_factor_vectors::Vector{FloatVector}, t::Int64, lags::Int64)
+    
+    @infiltrate
+
+    # Autoregressive predictors
+    for i=1:lags
+
+        @infiltrate
+        
+        predictors_matrix[i, t-lags+1] = equity_index[t-lags+i];
+        
+        @infiltrate
+    end
+    
+    @infiltrate
+
+    # Add transformed_factor_matrices to predictors
+    predictors_matrix[lags+1:end, t-lags+1] = vcat(transformed_factor_vectors...);
+    
+    @infiltrate
 end
 
 """
@@ -114,8 +145,6 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
 
         if t >= lags
             
-            @infiltrate # the `populate_factors_matrices!(...)` has been debugged
-
             # Populate `factors_matrices` (the first reference data is the time period t==lags)
             populate_factors_matrices!(factors_matrices, factors_coordinates, factors_associated_scaling, sspace, status, t, lags);
 
@@ -125,19 +154,14 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
             if use_refined_BC
                 transformed_factor_vectors = transform_latest_in_factors_matrices(factors_matrices, t, lags);
             else
-                transformed_factor_vectors = vcat([factors_matrices[i][:, t-lags+1] for i in axes(factors_matrices, 1)]...);
+                transformed_factor_vectors = get_latest_in_factors_matrices(factors_matrices, t, lags);
             end
 
             @infiltrate
 
-            # Add autoregressive part of the predictors to `predictors_matrix`
-            for j=1:lags
-                predictors_matrix[j, t-lags+1] = equity_index[t-lags+j];
-            end
+            # Populate `predictors_matrix` (the first reference data is the time period t==lags)
+            populate_predictors_matrix!(predictors_matrix, equity_index, transformed_factor_vectors, t, lags);
             
-            # Add transformed_factor_matrices to predictors
-            predictors_matrix[lags+1:end, t-lags+1] = vcat(transformed_factor_vectors...);
-
             @infiltrate
         end
     end
