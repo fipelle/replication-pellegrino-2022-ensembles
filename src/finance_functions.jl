@@ -56,7 +56,7 @@ function transform_latest_in_factors_matrices(factors_matrices::Vector{FloatMatr
             transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags, :]' .- transformed_current_factor_vector[1:lags-2, :]);
             
             # Future conditions vs present (excl. BC_{t+1} - BC_{t} since it is already accounted for in the changes)
-            transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags+2:end, :] .- transformed_current_factor_vector[lags, :]');
+            transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags+2:2*lags-1, :] .- transformed_current_factor_vector[lags, :]');
         end
 
         # Update output
