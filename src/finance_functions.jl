@@ -81,25 +81,15 @@ Populate `predictors_matrix` to construct the data subsamples.
 """
 function populate_predictors_matrix!(predictors_matrix::FloatMatrix, equity_index::FloatVector, transformed_factor_vectors::Vector{FloatVector}, t::Int64, lags::Int64)
     
-    @infiltrate
-
     # Autoregressive predictors
     for i=1:lags
-
-        @infiltrate
-        
         predictors_matrix[i, t-lags+1] = equity_index[t-lags+i];
-        
-        @infiltrate
     end
     
-    @infiltrate
-
-    # Add transformed_factor_matrices to predictors
-    # THIS WONT WORK WITHOUT FACT AUGMENTATION
-    predictors_matrix[lags+1:end, t-lags+1] = vcat(transformed_factor_vectors...);
-    
-    @infiltrate
+    # Add transformed_factor_matrices to predictors (if required)
+    if length(transformed_factor_vectors) > 0
+        predictors_matrix[lags+1:end, t-lags+1] = vcat(transformed_factor_vectors...);
+    end
 end
 
 """
@@ -117,10 +107,8 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     lags = Int64(optimal_hyperparams[1]);
 
     # Predictors    
-    predictors_matrix = zeros(lags + include_factor_augmentation*(1+compute_ep_cycle)*(use_refined_BC*(6*lags-7) + (1-use_refined_BC)*(2*lags-1)), size(macro_data, 2)-lags+1); # includes both the autoregressive part and the factor augmentation (if any)
+    predictors_matrix = zeros(lags + include_factor_augmentation*(1+compute_ep_cycle)*(use_refined_BC*(6*lags-7) + (1-use_refined_BC)*(2*lags-1)), size(macro_data, 2)-lags+1); # includes both the autoregressive part and the factor augmentation (if any) and its transformations (if required)
     
-    @infiltrate # make sure that the 6*lags-7 is the correct figure (i think i am double counting 2*lags-1)
-
     if include_factor_augmentation
 
         # Get trend-cycle model structure (estimated with data up to t0 - included)
@@ -169,9 +157,11 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
                 @infiltrate
             
             else
-                transformed_factor_vectors = [];
+                transformed_factor_vectors = Vector{FloatVector}[];
             end
 
+            @infiltrate
+            
             # Populate `predictors_matrix` (the first reference data is the time period t==lags)
             populate_predictors_matrix!(predictors_matrix, equity_index, transformed_factor_vectors, t, lags);
             
