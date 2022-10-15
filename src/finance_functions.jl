@@ -35,12 +35,8 @@ Return a transformed version of the latest non-zero columns in `factors_matrices
 """
 function transform_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64)
 
-    @infiltrate
-
     # Pre-allocate container for output
-    transformed_factor_vectors = Vector{FloatVector}();
-
-    @infiltrate
+    transformed_factor_vectors = Vector{FloatVector}(undef, length(factors_matrices));
 
     # Loop over factor selection
     for i in axes(factors_matrices, 1)
@@ -50,31 +46,21 @@ function transform_latest_in_factors_matrices(factors_matrices::Vector{FloatMatr
 
         # Initialise `transformed_current_factor_vector` with the latest non-zero column in `current_factor_matrix`
         transformed_current_factor_vector = current_factor_matrix[:, t-lags+1];
-
-        @infiltrate
-
+        
         # Changes
-        transformed_current_factor_vector = vcat(transformed_current_factor_vector, diff(transformed_current_factor_vector, dims=1));
-
-        @infiltrate
+        transformed_current_factor_vector = vcat(transformed_current_factor_vector, diff(transformed_current_factor_vector));
 
         if lags > 2
             
             # Present vs past (excl. BC_{t} - BC_{t-1} since it is already accounted for in the changes)
-            transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags, :]' .- transformed_current_factor_vector[1:lags-2, :]);
-
-            @infiltrate
+            transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags] .- transformed_current_factor_vector[1:lags-2]);
 
             # Future conditions vs present (excl. BC_{t+1} - BC_{t} since it is already accounted for in the changes)
-            transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags+2:2*lags-1, :] .- transformed_current_factor_vector[lags, :]');
-
-            @infiltrate
+            transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags+2:2*lags-1] .- transformed_current_factor_vector[lags]);
         end
 
         # Update output
-        push!(transformed_factor_vectors, transformed_current_factor_vector);
-
-        @infiltrate
+        transformed_factor_vectors[i] = transformed_current_factor_vector;
     end
 
     # Return output
@@ -110,6 +96,7 @@ function populate_predictors_matrix!(predictors_matrix::FloatMatrix, equity_inde
     @infiltrate
 
     # Add transformed_factor_matrices to predictors
+    # THIS WONT WORK WITHOUT FACT AUGMENTATION
     predictors_matrix[lags+1:end, t-lags+1] = vcat(transformed_factor_vectors...);
     
     @infiltrate
@@ -129,13 +116,11 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     # Initial settings
     lags = Int64(optimal_hyperparams[1]);
 
-    # Predictors
-    @infiltrate
+    # Predictors    
+    predictors_matrix = zeros(lags + include_factor_augmentation*(1+compute_ep_cycle)*(use_refined_BC*(6*lags-7) + (1-use_refined_BC)*(2*lags-1)), size(macro_data, 2)-lags+1); # includes both the autoregressive part and the factor augmentation (if any)
     
-    predictors_matrix = zeros(lags + include_factor_augmentation*(1+compute_ep_cycle)*(2*lags-1), sspace.Y.T-lags+1); # includes both the autoregressive part and the factor augmentation (if any)
-    
-    @infiltrate
-    
+    @infiltrate # make sure that the 6*lags-7 is the correct figure (i think i am double counting 2*lags-1)
+
     if include_factor_augmentation
 
         # Get trend-cycle model structure (estimated with data up to t0 - included)
