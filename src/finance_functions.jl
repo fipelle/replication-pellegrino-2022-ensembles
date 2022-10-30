@@ -19,8 +19,8 @@ function populate_factors_matrices!(factors_matrices::Vector{FloatMatrix}, facto
 
         # Store lags and expectations for the factor
         for j=1:lags-1
-            current_factor_matrix[j, t-lags+1] = X_sm[j][current_factor_coordinates] * current_factor_associated_scaling;       # from j to lags-1 (i.e., 1 to lags-1)
-            current_factor_matrix[j+lags, t-lags+1] = X_fc[j][current_factor_coordinates] * current_factor_associated_scaling;  # from j+lags to 2*lags-1 (i.e., lags+1 to 2*lags-1 - if lags==12 -> 13 to 23 as expected)
+            current_factor_matrix[j, t-lags+1] = X_sm[j][current_factor_coordinates] * current_factor_associated_scaling;       # from 1 to lags-1
+            current_factor_matrix[j+lags, t-lags+1] = X_fc[j][current_factor_coordinates] * current_factor_associated_scaling;  # from lags+1 to 2*lags-1 (if lags==12 -> 13 to 23 as expected)
         end
         
         # Store present conditions for the factor
@@ -145,27 +145,19 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
                 # Populate `factors_matrices` (the first reference data is the time period t==lags)
                 populate_factors_matrices!(factors_matrices, factors_coordinates, factors_associated_scaling, sspace, status, t, lags);
 
-                @infiltrate # the `populate_factors_matrices!(...)` has been debugged
-
                 # Generate `transformed_factor_vectors` (i.e., transform the latest column in the entries of `factors_matrices`)
                 if use_refined_BC
                     transformed_factor_vectors = transform_latest_in_factors_matrices(factors_matrices, t, lags);
                 else
                     transformed_factor_vectors = get_latest_in_factors_matrices(factors_matrices, t, lags);
                 end
-
-                @infiltrate
-            
+                
             else
-                transformed_factor_vectors = Vector{FloatVector}[];
+                transformed_factor_vectors = Vector{FloatVector}();
             end
-
-            @infiltrate
-            
+                        
             # Populate `predictors_matrix` (the first reference data is the time period t==lags)
             populate_predictors_matrix!(predictors_matrix, equity_index, transformed_factor_vectors, t, lags);
-            
-            @infiltrate
         end
     end
 

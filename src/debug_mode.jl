@@ -11,7 +11,7 @@ include("./finance_functions.jl");
 Load arguments passed through the command line
 =#
 
-compute_ep_cycle=false; equity_index_id=1; include_factor_augmentation=true; use_refined_BC=true; regression_model=1; log_folder_path="./BC_output";
+compute_ep_cycle=true; equity_index_id=1; include_factor_augmentation=false; use_refined_BC=true; regression_model=1; log_folder_path="./BC_and_EP_output";
 
 # Fixed number of max_samples for artificial jackknife
 max_samples = 1000;
