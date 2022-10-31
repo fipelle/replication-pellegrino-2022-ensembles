@@ -103,6 +103,11 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
     macro_data = permutedims(macro_data);
     
+    # Check size of `equity_index`
+    if length(equity_index) != size(macro_data, 2) + 1
+        error("`equity_index` must have an extra entry at the end compared to the macro vintage! Note that the first observation must refer to the same point in time.");
+    end
+
     # Initial settings
     lags = Int64(optimal_hyperparams[1]);
 
@@ -155,23 +160,25 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
             else
                 transformed_factor_vectors = Vector{FloatVector}();
             end
-                        
+            
             # Populate `predictors_matrix` (the first reference data is the time period t==lags)
             populate_predictors_matrix!(predictors_matrix, equity_index, transformed_factor_vectors, t, lags);
         end
     end
 
-    # Split sample on the basis of t0
-    # -> TBA
+    # The first column in `predictors_matrix` includes data on the `equity_index` from 1 to lags thus `target_vector` starts from lags+1
+    target_vector = equity_index[lags+1:end]; # it has the same size than `predictors_matrix` since `equity_index` has an extra entry at the end
+    #@infiltrate
     
-    #=
-    # Memory pre-allocation for output arrays
-    estimation_samples_target = FloatVector[];              # TBC this should be equal to equity_index[lags+1:t0]
-    estimation_samples_predictors = FloatMatrix[];          # TBC this should refer to lags:t0-1
-    validation_samples_target = FloatVector[];              # TBC this should be equal to equity_index[t0+1:T] or equity_index[t0+1:T+1]
-    validation_samples_predictors = Vector{FloatVector}();  # TBC this should refer to t0:T-1 or t0:T
-    =#
+    # Estimation is up to t==t0
+    estimation_samples_target = target_vector[1:t0-lags+1];
+    estimation_samples_predictors = predictors_matrix[:, 1:t0-lags+1];
+    #@infiltrate
     
+    # Validation is for t>t0
+    validation_samples_target = target_vector[t0-lags+2:end];
+    validation_samples_predictors = predictors_matrix[t0-lags+2:end];
+
     # Return output
     return estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors;
 end
