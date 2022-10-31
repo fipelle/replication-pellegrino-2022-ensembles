@@ -1,10 +1,9 @@
 # Libraries
-using Distributed;
-@everywhere using MessyTimeSeriesOptim;
 using CSV, DataFrames, Dates, FileIO, JLD, Logging;
-using LinearAlgebra, Statistics, MessyTimeSeries;
+using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, ScikitLearn, Statistics;
+@sk_import ensemble: RandomForestRegressor;
+using Infiltrator; # TEMP
 include("./macro_functions.jl");
-using Infiltrator;
 include("./finance_functions.jl");
 
 #=
@@ -13,8 +12,8 @@ Load arguments passed through the command line
 
 compute_ep_cycle=true; equity_index_id=1; include_factor_augmentation=false; use_refined_BC=true; regression_model=1; log_folder_path="./BC_and_EP_output";
 
-# Fixed number of max_samples for artificial jackknife
-max_samples = 1000;
+# Fixed number of trees per ensemble
+n_estimators = 1000;
 
 #=
 Setup logger
@@ -34,7 +33,7 @@ First log entries
 @info("use_refined_BC: $(use_refined_BC)");
 @info("regression_model: $(regression_model)")
 @info("log_folder_path: $(log_folder_path)");
-@info("max_samples: $(max_samples)");
+@info("n_estimators: $(n_estimators)");
 flush(io);
 
 #=
@@ -92,3 +91,33 @@ validation_sample_length = size(first_data_vintage, 1) - estimation_sample_lengt
 
 # Get training and validation samples
 estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+
+@info("------------------------------------------------------------")
+@info("Construct hyperparameters grid");
+flush(io);
+
+# Compute validation error
+grid_max_samples      = [1.0];                                                  # the number of samples to draw from X to train each base estimator
+grid_max_features     = [1.0];                                                  # the default of 1.0 is equivalent to bagged trees and more randomness can be achieved by setting smaller values
+grid_min_samples_leaf = collect(range(5, stop=50, length=10)) |> Vector{Int64}; # the minimum number of samples required to be at a leaf node
+
+grid_hyperparameters = Vector{NamedTuple}();
+for max_samples in grid_max_samples
+    for max_features in grid_max_features
+        for min_samples_leaf in grid_min_samples_leaf
+            push!(grid_hyperparameters, (random_state=1, n_estimators=n_estimators, max_samples=max_samples, max_features=max_features, min_samples_leaf=min_samples_leaf));
+        end
+    end
+end
+
+@info("------------------------------------------------------------")
+@info("Select hyperparameters for tree ensemble");
+flush(io);
+
+# Initialise
+validation_errors = zeros(length(grid_hyperparameters));
+
+# Compute the validation mean squared error looping over each candidate hyperparameter
+for (i, model_settings) in enumerate(grid_hyperparameters)
+    _, _, validation_errors[i] = estimate_and_validate(estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors, RandomForestRegressor, model_settings);
+end
