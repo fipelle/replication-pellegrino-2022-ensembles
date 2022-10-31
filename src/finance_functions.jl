@@ -175,7 +175,7 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     
     # Validation is for t>t0
     validation_samples_target = target_vector[t0-lags+2:end];
-    validation_samples_predictors = predictors_matrix[t0-lags+2:end];
+    validation_samples_predictors = predictors_matrix[:, t0-lags+2:end];
 
     # Return output
     return estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors;
