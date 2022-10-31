@@ -180,3 +180,26 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     # Return output
     return estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors;
 end
+
+"""
+    estimate_and_validate(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+
+Estimate and validate `model` given the settings in `model_settings`.
+"""
+function estimate_and_validate(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+    
+    # Generate `model` instance
+    model_instance = model(; model_settings...);
+
+    # Estimation
+    ScikitLearn.fit!(model_instance, permutedims(estimation_samples_predictors), estimation_samples_target); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+
+    # Validation sample forecasts
+    validation_forecasts = ScikitLearn.predict(model_instance, permutedims(validation_samples_predictors)); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+
+    # Compute validation error
+    validation_error = mean((validation_samples_target .- validation_forecasts).^2);
+
+    # Return output
+    return model_instance, validation_forecasts, validation_error;
+end

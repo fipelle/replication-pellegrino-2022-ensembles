@@ -88,7 +88,7 @@ estimation_sample_length = fld(size(first_data_vintage, 1), 2);
 validation_sample_length = size(first_data_vintage, 1) - estimation_sample_length;
 
 @info("------------------------------------------------------------")
-@info("Partition data into training, selection and validation samples");
+@info("Partition data into training and validation samples");
 
-# Get selection and validation samples
+# Get training and validation samples
 estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
