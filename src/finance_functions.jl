@@ -93,7 +93,7 @@ function populate_predictors_matrix!(predictors_matrix::FloatMatrix, equity_inde
 end
 
 """
-    get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}})
+    get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_estim::Union{Nothing, EstimSettings}=nothing, existing_std_diff_data::Union{Nothing, FloatVector}=nothing)
 
 Return macro data partitions compatible with tree ensembles.
 """
@@ -118,7 +118,7 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
 
         # Get trend-cycle model structure (estimated with data up to t0 - included)
         estim, std_diff_data = get_tc_structure(macro_data[:, 1:t0], optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling, existing_estim, existing_std_diff_data);
-        
+
         # Estimate the trend-cycle model with (estimated with data up to t0 - included)
         sspace = ecm(estim, output_sspace_data=macro_data./std_diff_data); # using the optional keyword argument `output_sspace_data` allows to construct the validation samples
         status = DynamicKalmanStatus();
