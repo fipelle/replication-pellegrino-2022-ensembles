@@ -152,6 +152,6 @@ function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hy
     return estim, std_diff_data;
 end
 
-function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_estim::EstimSettings, existing_std_diff_data::Vector{Float64})
+function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_estim::EstimSettings, existing_std_diff_data::FloatVector)
     return existing_estim, existing_std_diff_data;
 end
