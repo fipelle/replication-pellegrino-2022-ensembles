@@ -97,7 +97,7 @@ end
 
 Return macro data partitions compatible with tree ensembles.
 """
-function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}})
+function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_estim::Union{Nothing, EstimSettings}=nothing, existing_std_diff_data::Union{Nothing, FloatVector}=nothing)
     
     # Extract data from `macro_vintage`
     macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
@@ -117,8 +117,8 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     if include_factor_augmentation
 
         # Get trend-cycle model structure (estimated with data up to t0 - included)
-        estim, std_diff_data = get_tc_structure(macro_data[:, 1:t0], optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
-
+        estim, std_diff_data = get_tc_structure(macro_data[:, 1:t0], optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling, existing_estim, existing_std_diff_data);
+        
         # Estimate the trend-cycle model with (estimated with data up to t0 - included)
         sspace = ecm(estim, output_sspace_data=macro_data./std_diff_data); # using the optional keyword argument `output_sspace_data` allows to construct the validation samples
         status = DynamicKalmanStatus();
@@ -190,15 +190,19 @@ function estimate_and_validate(estimation_samples_target::FloatVector, estimatio
     
     # Generate `model` instance
     model_instance = model(; model_settings...);
+    @infiltrate
 
     # Estimation
     ScikitLearn.fit!(model_instance, permutedims(estimation_samples_predictors), estimation_samples_target); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+    @infiltrate
 
     # Validation sample forecasts
     validation_forecasts = ScikitLearn.predict(model_instance, permutedims(validation_samples_predictors)); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+    @infiltrate
 
     # Compute validation error
     validation_error = mean((validation_samples_target .- validation_forecasts).^2);
+    @infiltrate
 
     # Return output
     return model_instance, validation_forecasts, validation_error;
