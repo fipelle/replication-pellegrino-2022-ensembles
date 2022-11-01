@@ -122,11 +122,11 @@ function get_dfm_args(compute_ep_cycle::Bool, n_series::Int64, n_cycles::Int64, 
 end
 
 """
-    get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}})
+    get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_estim::Nothing=nothing, existing_std_diff_data::Nothing=nothing)
 
 Get trend-cycle model structure.
 """
-function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}})
+function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_estim::Nothing=nothing, existing_std_diff_data::Nothing=nothing)
 
     # Retrieve arguments
     trends_skeleton = model_args[1];
@@ -150,4 +150,8 @@ function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hy
 
     # Return output
     return estim, std_diff_data;
+end
+
+function get_tc_structure(data::Union{FloatMatrix, JMatrix{Float64}}, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_estim::EstimSettings, existing_std_diff_data::Vector{Float64})
+    return existing_estim, existing_std_diff_data;
 end
