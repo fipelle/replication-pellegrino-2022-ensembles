@@ -145,7 +145,6 @@ offset_vintages = 4;
 outturn_array = zeros(length(data_vintages)-offset_vintages);
 forecast_array = zeros(length(data_vintages)-offset_vintages);
 
-#=
 @info("------------------------------------------------------------")
 for v in axes(forecast_array, 1)
     @info ("OOS iteration $(v) out of $(length(forecast_array))");
@@ -156,6 +155,6 @@ for v in axes(forecast_array, 1)
     current_data_vintage_length = size(current_vintage, 1);
     
     # Compute predictor matrix and get outturn for the target
-    
+    _, _, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+
 end
-=#
