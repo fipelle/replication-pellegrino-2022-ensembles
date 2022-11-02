@@ -155,6 +155,6 @@ for v in axes(forecast_array, 1)
     current_data_vintage_length = size(current_vintage, 1);
     
     # Compute predictor matrix and get outturn for the target
-    _, _, _, _, current_validation_samples_target, current_validation_samples_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+    _, _, _, _, current_validation_samples_target, current_validation_samples_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling, sspace, std_diff_data);
 
 end
