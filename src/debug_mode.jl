@@ -144,3 +144,18 @@ offset_vintages = 4;
 # Memory pre-allocation for output
 outturn_array = zeros(length(data_vintages)-offset_vintages);
 forecast_array = zeros(length(data_vintages)-offset_vintages);
+
+#=
+@info("------------------------------------------------------------")
+for v in axes(forecast_array, 1)
+    @info ("OOS iteration $(v) out of $(length(forecast_array))");
+    flush(io);
+
+    # Select current vintage
+    current_data_vintage = data_vintages[v+offset_vintages];
+    current_data_vintage_length = size(current_vintage, 1);
+    
+    # Compute predictor matrix and get outturn for the target
+    
+end
+=#
