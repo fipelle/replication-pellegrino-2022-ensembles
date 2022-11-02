@@ -199,9 +199,14 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     estimation_samples_predictors = predictors_matrix[:, 1:t0-lags+1];
     
     # Validation is for t>t0
-    validation_samples_target = target_vector[t0-lags+2:end];
-    validation_samples_predictors = predictors_matrix[:, t0-lags+2:end];
-
+    if length(target_vector) > t0-lags+1
+        validation_samples_target = target_vector[t0-lags+2:end];
+        validation_samples_predictors = predictors_matrix[:, t0-lags+2:end];
+    else
+        validation_samples_target = Float64[];
+        validation_samples_predictors = Matrix{Float64}[];
+    end
+    
     # Return output
     return sspace, std_diff_data, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors;
 end
