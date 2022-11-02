@@ -212,17 +212,31 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
 end
 
 """
-    estimate_and_validate(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+    estimate_skl_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
 
-Estimate and validate `model` given the settings in `model_settings`.
+Estimate `model` given the settings in `model_settings`.
 """
-function estimate_and_validate(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+function estimate_skl_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
     
     # Generate `model` instance
     model_instance = model(; model_settings...);
-
+    
     # Estimation
     ScikitLearn.fit!(model_instance, permutedims(estimation_samples_predictors), estimation_samples_target); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+    
+    # Return model instance
+    return model_instance;
+end
+
+"""
+    estimate_and_validate_skl_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+
+Estimate and validate `model` given the settings in `model_settings`.
+"""
+function estimate_and_validate_skl_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+
+    # Generate model instance
+    model_instance = estimate_skl_model(estimation_samples_target, estimation_samples_predictors, model, model_settings);
 
     # Validation sample forecasts
     validation_forecasts = ScikitLearn.predict(model_instance, permutedims(validation_samples_predictors)); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
