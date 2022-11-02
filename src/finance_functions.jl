@@ -154,6 +154,10 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
             push!(factors_coordinates, findlast(sspace.B[n_cycles, :] .== 1)); # energy price cycle's coordinates
             push!(factors_associated_scaling, std_diff_data[n_cycles]);
         end
+    
+    else
+        sspace = nothing;
+        std_diff_data = nothing;
     end
 
     # Compute the business cycle vintages required to structure the estimation and validation samples in a pseudo out-of-sample fashion
@@ -199,7 +203,7 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     validation_samples_predictors = predictors_matrix[:, t0-lags+2:end];
 
     # Return output
-    return estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors;
+    return sspace, std_diff_data, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors;
 end
 
 """
