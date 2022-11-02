@@ -10,7 +10,7 @@ include("./finance_functions.jl");
 Load arguments passed through the command line
 =#
 
-compute_ep_cycle=true; equity_index_id=1; include_factor_augmentation=false; use_refined_BC=true; regression_model=1; log_folder_path="./BC_and_EP_output";
+compute_ep_cycle=true; equity_index_id=1; include_factor_augmentation=true; use_refined_BC=true; regression_model=1; log_folder_path="./BC_and_EP_output";
 
 # Fixed number of trees per ensemble
 n_estimators = 1000;
@@ -79,6 +79,10 @@ This operation is performed with the same data used for the macro selection. Ind
 The selection sample is the first vintage in `data_vintages`.
 =#
 
+@info("------------------------------------------------------------")
+@info("Partition data into training and validation samples");
+flush(io);
+
 # First data vintage
 first_data_vintage = data_vintages[1]; # default: data up to 2005-01-31
 
@@ -86,11 +90,8 @@ first_data_vintage = data_vintages[1]; # default: data up to 2005-01-31
 estimation_sample_length = fld(size(first_data_vintage, 1), 2);
 validation_sample_length = size(first_data_vintage, 1) - estimation_sample_length;
 
-@info("------------------------------------------------------------")
-@info("Partition data into training and validation samples");
-
 # Get training and validation samples
-estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+_, _, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
 
 @info("------------------------------------------------------------")
 @info("Construct hyperparameters grid");
@@ -121,3 +122,25 @@ validation_errors = zeros(length(grid_hyperparameters));
 for (i, model_settings) in enumerate(grid_hyperparameters)
     _, _, validation_errors[i] = estimate_and_validate(estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors, RandomForestRegressor, model_settings);
 end
+
+# Optimal hyperparameter
+optimal_rf_setting = grid_hyperparameters[argmin(validation_errors)];
+@info("Optimal min_samples_leaf=$(optimal_rf_setting)");
+flush(io);
+
+#=
+Out-of-sample forecasts
+
+The out-of-sample exercise stores the one-step ahead squared error for the target equity index. 
+This operation produces forecasts referring to every month from 2005-02-28 to 2021-01-31.
+=#
+
+# Estimate on full selection sample
+sspace, std_diff_data, _ = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length+validation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+
+# The equity index value for 2005-01-31 is used in the estimation. This offset allows to start the next calculations from the next reference point and to be a truly out-of-sample exercise
+offset_vintages = 4;
+
+# Memory pre-allocation for output
+outturn_array = zeros(length(data_vintages)-offset_vintages);
+forecast_array = zeros(length(data_vintages)-offset_vintages);
