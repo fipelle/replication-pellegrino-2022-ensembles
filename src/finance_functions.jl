@@ -93,7 +93,7 @@ function populate_predictors_matrix!(predictors_matrix::FloatMatrix, equity_inde
 end
 
 """
-    get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Nothing=nothing, existing_std_diff_data::Nothing=nothing)
+    get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Nothing, existing_std_diff_data::Nothing)
 
 Run `ecm(...)` to compute `sspace`.
 
@@ -101,7 +101,7 @@ Run `ecm(...)` to compute `sspace`.
 
 Update and return `existing_sspace`.
 """
-function get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Nothing=nothing, existing_std_diff_data::Nothing=nothing)
+function get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Nothing, existing_std_diff_data::Nothing)
 
     # Get trend-cycle model structure (estimated with data up to t0 - included)
     @infiltrate
