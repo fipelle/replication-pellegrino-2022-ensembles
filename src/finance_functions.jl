@@ -97,7 +97,7 @@ end
 
 Run `ecm(...)` to compute `sspace`.
 
-    get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::KalmanSettings, existing_std_diff_data::FloatVector)
+    get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::KalmanSettings, existing_std_diff_data::FloatMatrix)
 
 Update and return `existing_sspace`.
 """
@@ -110,7 +110,7 @@ function get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64,
     return ecm(estim, output_sspace_data=macro_data./std_diff_data), std_diff_data; # using the optional keyword argument `output_sspace_data` allows `ecm(...)` to construct the validation samples
 end
 
-function get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::KalmanSettings, existing_std_diff_data::FloatVector)
+function get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::KalmanSettings, existing_std_diff_data::FloatMatrix)
     @infiltrate
     MessyTimeSeriesOptim.update_sspace_data!(existing_sspace, macro_data./existing_std_diff_data);
     @infiltrate
@@ -118,11 +118,11 @@ function get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64,
 end
 
 """
-    get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Union{Nothing, KalmanSettings}=nothing, existing_std_diff_data::Union{Nothing, FloatVector}=nothing)
+    get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Union{Nothing, KalmanSettings}=nothing, existing_std_diff_data::Union{Nothing, FloatMatrix}=nothing)
 
 Return macro data partitions compatible with tree ensembles.
 """
-function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Union{Nothing, KalmanSettings}=nothing, existing_std_diff_data::Union{Nothing, FloatVector}=nothing)
+function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Union{Nothing, KalmanSettings}=nothing, existing_std_diff_data::Union{Nothing, FloatMatrix}=nothing)
     
     # Extract data from `macro_vintage`
     macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
