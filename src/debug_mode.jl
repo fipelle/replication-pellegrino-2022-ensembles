@@ -138,7 +138,8 @@ This operation produces forecasts referring to every month from 2005-02-28 to 20
 # Estimate on full selection sample
 sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length+validation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
 
-# FIT!(...) -> GENERATE OPTIMAL MODEL INSTANCE
+@infiltrate
+optimal_rf_instance = estimate_skl_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, optimal_rf_setting);
 
 # The equity index value for 2005-01-31 is used in the estimation. This offset allows to start the next calculations from the next reference point and to be a truly out-of-sample exercise
 offset_vintages = 4;
@@ -155,11 +156,16 @@ for v in axes(forecast_array, 1)
     # Select current vintage
     current_data_vintage = data_vintages[v+offset_vintages];
     current_data_vintage_length = size(current_data_vintage, 1);
-    
+
     # Compute predictor matrix and get outturn for the target
     _, _, _, _, current_validation_samples_target, current_validation_samples_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling, sspace, std_diff_data);
 
-    # PREDICT(...) -> STORE OUTTURN AND FORECAST
+    # Store new forecast
+    @infiltrate
+    forecast_array[v] = ScikitLearn.predict(optimal_rf_instance, permutedims(current_validation_samples_predictors[:, end])); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+
+    # Store current outturn
+    outturn_array[v] = current_validation_samples_target[end];
 end
 
 # STORE OUTPUT TO JLD
