@@ -111,9 +111,7 @@ function get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64,
 end
 
 function get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::KalmanSettings, existing_std_diff_data::FloatMatrix)
-    @infiltrate
     MessyTimeSeriesOptim.update_sspace_data!(existing_sspace, macro_data./existing_std_diff_data);
-    @infiltrate
     return existing_sspace, existing_std_diff_data;
 end
 

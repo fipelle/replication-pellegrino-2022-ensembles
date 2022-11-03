@@ -120,7 +120,7 @@ validation_errors = zeros(length(grid_hyperparameters));
 
 # Compute the validation mean squared error looping over each candidate hyperparameter
 for (i, model_settings) in enumerate(grid_hyperparameters)
-    _, _, validation_errors[i] = estimate_and_validate(estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors, RandomForestRegressor, model_settings);
+    _, _, validation_errors[i] = estimate_and_validate_skl_model(estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors, RandomForestRegressor, model_settings);
 end
 
 # Optimal hyperparameter
@@ -138,6 +138,8 @@ This operation produces forecasts referring to every month from 2005-02-28 to 20
 # Estimate on full selection sample
 sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length+validation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
 
+# FIT!(...) -> GENERATE OPTIMAL MODEL INSTANCE
+
 # The equity index value for 2005-01-31 is used in the estimation. This offset allows to start the next calculations from the next reference point and to be a truly out-of-sample exercise
 offset_vintages = 4;
 
@@ -152,9 +154,12 @@ for v in axes(forecast_array, 1)
 
     # Select current vintage
     current_data_vintage = data_vintages[v+offset_vintages];
-    current_data_vintage_length = size(current_vintage, 1);
+    current_data_vintage_length = size(current_data_vintage, 1);
     
     # Compute predictor matrix and get outturn for the target
     _, _, _, _, current_validation_samples_target, current_validation_samples_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling, sspace, std_diff_data);
 
+    # PREDICT(...) -> STORE OUTTURN AND FORECAST
 end
+
+# STORE OUTPUT TO JLD
