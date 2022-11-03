@@ -162,7 +162,7 @@ for v in axes(forecast_array, 1)
 
     # Store new forecast
     @infiltrate
-    forecast_array[v] = ScikitLearn.predict(optimal_rf_instance, permutedims(current_predictors)); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+    forecast_array[v] = ScikitLearn.predict(optimal_rf_instance, permutedims(current_predictors))[end]; # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
 
     # Store current outturn
     outturn_array[v] = current_target[end];
