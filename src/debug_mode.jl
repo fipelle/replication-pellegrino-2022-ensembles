@@ -158,14 +158,14 @@ for v in axes(forecast_array, 1)
     current_data_vintage_length = size(current_data_vintage, 1);
 
     # Compute predictor matrix and get outturn for the target
-    _, _, _, _, current_validation_samples_target, current_validation_samples_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling, sspace, std_diff_data);
+    _, _, _, _, current_target, current_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length-1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling, sspace, std_diff_data);
 
     # Store new forecast
     @infiltrate
-    forecast_array[v] = ScikitLearn.predict(optimal_rf_instance, permutedims(current_validation_samples_predictors[:, end])); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+    forecast_array[v] = ScikitLearn.predict(optimal_rf_instance, permutedims(current_predictors)); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
 
     # Store current outturn
-    outturn_array[v] = current_validation_samples_target[end];
+    outturn_array[v] = current_target[end];
 end
 
 # STORE OUTPUT TO JLD
