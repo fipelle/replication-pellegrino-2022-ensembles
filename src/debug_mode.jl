@@ -12,7 +12,7 @@ Load arguments passed through the command line
 compute_ep_cycle=true; equity_index_id=1; include_factor_augmentation=true; use_refined_BC=true; regression_model=1; log_folder_path="./BC_and_EP_output";
 
 # Fixed number of trees per ensemble
-n_estimators = 2;
+n_estimators = 500;
 
 #=
 Setup logger
