@@ -119,8 +119,19 @@ flush(io);
 
 # Compute validation error
 grid_max_samples      = [1.0];                                                  # the number of samples to draw from X to train each base estimator
-grid_max_features     = [1.0];                                                  # the default of 1.0 is equivalent to bagged trees and more randomness can be achieved by setting smaller values
 grid_min_samples_leaf = collect(range(5, stop=50, length=10)) |> Vector{Int64}; # the minimum number of samples required to be at a leaf node
+
+# Bagging
+if regression_model == 1
+    grid_max_features = [1.0];                                                  # the default of 1.0 is equivalent to bagged trees and more randomness can be achieved by setting smaller values
+
+# Random forest
+elseif regression_model == 2
+    grid_max_features = collect(range(0.5, stop=1.0, length=5));                # the default of 1.0 is equivalent to bagged trees and more randomness can be achieved by setting smaller values
+
+else
+    error("Unsupported `regression_model!`")
+end
 
 grid_hyperparameters = Vector{NamedTuple}();
 for max_samples in grid_max_samples
