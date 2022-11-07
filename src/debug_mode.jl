@@ -5,8 +5,29 @@ using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, ScikitLearn, Statist
 include("./macro_functions.jl");
 include("./finance_functions.jl");
 
+
 #=
 Load arguments passed through the command line
+=#
+
+#=
+# Equity index id
+equity_index_id = parse(Int64, ARGS[1]);
+
+# Regression model
+regression_model = parse(Int64, ARGS[2])
+
+# EP or not
+compute_ep_cycle = parse(Bool, ARGS[3]);
+
+# Use lags of equity index as predictors
+include_factor_augmentation = parse(Bool, ARGS[4]);
+
+# Use BC breakdown, rather than the raw estimate
+use_refined_BC = parse(Bool, ARGS[5]);
+
+# Output folder
+log_folder_path = ARGS[6];
 =#
 
 compute_ep_cycle=true; equity_index_id=1; include_factor_augmentation=true; use_refined_BC=true; regression_model=1; log_folder_path="./BC_and_EP_output";
@@ -18,7 +39,7 @@ n_estimators = 500;
 Setup logger
 =#
 
-io = open("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(compute_ep_cycle).txt", "w+");
+io = open("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(use_refined_BC).txt", "w+");
 global_logger(ConsoleLogger(io));
 
 #=
@@ -26,11 +47,11 @@ First log entries
 =#
 
 @info("------------------------------------------------------------")
-@info("compute_ep_cycle: $(compute_ep_cycle)");
 @info("equity_index_id: $(equity_index_id)");
+@info("regression_model: $(regression_model)")
+@info("compute_ep_cycle: $(compute_ep_cycle)");
 @info("include_factor_augmentation: $(include_factor_augmentation)");
 @info("use_refined_BC: $(use_refined_BC)");
-@info("regression_model: $(regression_model)")
 @info("log_folder_path: $(log_folder_path)");
 @info("n_estimators: $(n_estimators)");
 flush(io);
@@ -183,7 +204,7 @@ equity_index_ref_oos = equity_index_ref[1+offset_vintages:end];
 distance_from_reference_month = Dates.value.(equity_index_ref_oos-release_dates_oos);
 
 # Store output
-save("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(compute_ep_cycle).jld", 
+save("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(use_refined_BC).jld", 
     Dict("equity_index_id" => equity_index_id,
          "regression_model" => regression_model,
          "compute_ep_cycle" => compute_ep_cycle,
