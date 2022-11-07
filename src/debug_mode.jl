@@ -215,7 +215,7 @@ equity_index_ref_oos = equity_index_ref[1+offset_vintages:end];
 distance_from_reference_month = Dates.value.(equity_index_ref_oos-release_dates_oos);
 
 # Store output
-save("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(use_refined_BC).jld", 
+save("$(log_folder_path)/$(regression_model)/output_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(use_refined_BC).jld", 
     Dict("equity_index_id" => equity_index_id,
          "regression_model" => regression_model,
          "compute_ep_cycle" => compute_ep_cycle,
