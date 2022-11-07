@@ -12,7 +12,7 @@ Load arguments passed through the command line
 compute_ep_cycle=true; equity_index_id=1; include_factor_augmentation=true; use_refined_BC=true; regression_model=1; log_folder_path="./BC_and_EP_output";
 
 # Fixed number of trees per ensemble
-n_estimators = 1000;
+n_estimators = 2;
 
 #=
 Setup logger
@@ -171,11 +171,15 @@ Store output in JLD
 @info("------------------------------------------------------------")
 @info("Saving output to JLD");
 flush(io);
-error("TEST!")
-# Reference periods
+
+# Release dates post `offset_vintages`
 release_dates_oos = release_dates[1+offset_vintages:end];
-equity_index_ref = [Dates.lastdayofmonth(Dates.firstdayofmonth(data_vintages[v][end,1])+Month(1)) for v in axes(data_vintages,1)];
+
+# Reference periods post `offset_vintages` for the target (i.e., equity index)
+equity_index_ref = [Dates.lastdayofmonth(Dates.firstdayofmonth(data_vintages[v][end,1])+Month(1)) for v in axes(data_vintages, 1)];
 equity_index_ref_oos = equity_index_ref[1+offset_vintages:end];
+
+# Distance from reference period
 distance_from_reference_month = Dates.value.(equity_index_ref_oos-release_dates_oos);
 
 # Store output
