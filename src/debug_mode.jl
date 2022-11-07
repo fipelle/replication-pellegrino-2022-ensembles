@@ -164,4 +164,41 @@ for v in axes(forecast_array, 1)
     outturn_array[v] = current_target[end]; # current_target is a 1-dimensional vector
 end
 
-# STORE OUTPUT TO JLD
+#=
+Store output in JLD
+=#
+
+@info("------------------------------------------------------------")
+@info("Saving output to JLD");
+flush(io);
+error("TEST!")
+# Reference periods
+release_dates_oos = release_dates[1+offset_vintages:end];
+equity_index_ref = [Dates.lastdayofmonth(Dates.firstdayofmonth(data_vintages[v][end,1])+Month(1)) for v in axes(data_vintages,1)];
+equity_index_ref_oos = equity_index_ref[1+offset_vintages:end];
+distance_from_reference_month = Dates.value.(equity_index_ref_oos-release_dates_oos);
+
+# Store output
+save("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(compute_ep_cycle).jld", 
+    Dict("equity_index_id" => equity_index_id,
+         "regression_model" => regression_model,
+         "include_factor_augmentation" => include_factor_augmentation,
+         "use_refined_BC" => use_refined_BC,
+         "compute_ep_cycle" => compute_ep_cycle,
+         "ecm_kalman_settings" => ecm_kalman_settings,
+         "ecm_std_diff_data" => ecm_std_diff_data,
+         "business_cycle_position" => business_cycle_position,
+         "optimal_hyperparams" => optimal_hyperparams, 
+         "errors_validation" => errors_validation, 
+         "grid_min_samples_leaf" => grid_min_samples_leaf, 
+         "optimal_min_samples_leaf" => optimal_min_samples_leaf, 
+         "outturn_array" => outturn_array, 
+         "forecast_array" => forecast_array, 
+         "release_dates_oos" => release_dates_oos,
+         "equity_index_ref_oos" => equity_index_ref_oos,
+         "distance_from_reference_month" => distance_from_reference_month));
+
+@info("------------------------------------------------------------")
+@info("Done!");
+@info("------------------------------------------------------------")
+close(io);
