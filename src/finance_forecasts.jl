@@ -5,7 +5,6 @@ using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, ScikitLearn, Statist
 include("./macro_functions.jl");
 include("./finance_functions.jl");
 
-
 #=
 Load arguments passed through the command line
 =#
