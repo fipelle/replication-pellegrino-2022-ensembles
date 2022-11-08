@@ -18,10 +18,10 @@ regression_model = parse(Int64, ARGS[2])
 # EP or not
 compute_ep_cycle = parse(Bool, ARGS[3]);
 
-# Use lags of equity index as predictors
+# Use factors as well as autoregressive data on the target
 include_factor_augmentation = parse(Bool, ARGS[4]);
 
-# Use BC breakdown, rather than the raw estimate
+# Use factors transformations as well as the level
 use_refined_BC = parse(Bool, ARGS[5]);
 
 # Output folder
