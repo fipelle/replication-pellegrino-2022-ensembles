@@ -29,16 +29,17 @@ end
 for equity_index_id=11:20
     for regression_model=1:2
         for compute_ep_cycle=[false; true]
-            for (include_factor_augmentation, use_refined_BC) in [(true, false)]
+            for (include_factor_augmentation, use_refined_BC) in [(false, false), (true, false), (true, true)]
 
                 # Get qsub content
                 qsub_content = get_qsub_content(equity_index_id, regression_model, compute_ep_cycle, include_factor_augmentation, use_refined_BC);
 
-                # Setup qsub and backup
+                # Setup qsub
                 open("index.qsub", "w") do io
                     write(io, qsub_content)
                 end;
                 
+                # Save backup qsub
                 open("./logs/$(regression_model)/scheduler_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(use_refined_BC).qsub", "w") do io
                     write(io, qsub_content)
                 end;
