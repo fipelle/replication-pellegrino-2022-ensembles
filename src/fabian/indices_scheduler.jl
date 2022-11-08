@@ -1,10 +1,9 @@
-function get_qsub_content(equity_index_id::Int64, subsample::Float64, subsampling_mnemonic::String, subsampling_function_id::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
+function get_qsub_content(equity_index_id::Int64, regression_model::Int64, compute_ep_cycle::Bool, include_factor_augmentation::Bool, use_refined_BC::Bool)
     
-    subsample_str = replace("$(ifelse(isnan(subsample), "default", subsample))", "."=>"_");
-
-    qsub_log_output = "\$HOME/Documents/replication-pellegrino-2022-ensembles/src/fabian/logs/$(subsampling_mnemonic)/\$JOB_NAME.\$JOB_ID.output";
-    qsub_name = "m$(subsampling_function_id)_ind_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(subsample_str)";
-    qsub_command = "julia finance_forecasts.jl false $(equity_index_id) $(include_factor_augmentation) $(use_refined_BC) $(subsample) $(subsampling_function_id) \"./BC_output\"";
+    julia_log_folder_path = ifelse(compute_ep_cycle, "./BC_and_EP_output", "./BC_output");
+    qsub_log_output = "\$HOME/Documents/replication-pellegrino-2022-ensembles/src/fabian/logs/$(regression_model)/\$JOB_NAME.\$JOB_ID.output";
+    qsub_name = "m$(equity_index_id)_$(regression_model)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(use_refined_BC)";
+    qsub_command = "julia finance_forecasts.jl $(equity_index_id) $(regression_model) $(compute_ep_cycle) $(include_factor_augmentation) $(use_refined_BC) $(julia_log_folder_path)"
 
     qsub_content = """
     #!/bin/bash -login
@@ -26,63 +25,31 @@ function get_qsub_content(equity_index_id::Int64, subsample::Float64, subsamplin
     return qsub_content;
 end
 
-# Loop over the subsampling methods
-for subsampling_method in [3]
-    
-    # Loop over the equity indices
-    for equity_index_id=11:20
-        
-        subsampling_function_id = copy(subsampling_method);
+# Loop over the equity indices
+for equity_index_id=11:20
+    for regression_model=1:2
+        for compute_ep_cycle=[false; true]
+            for (include_factor_augmentation, use_refined_BC) in [(false, false), (true, false), (true, true)]
 
-        # pair bootstrap
-        if subsampling_method == 0
-            subsample = NaN;
-            subsampling_mnemonic = "pair_bootstrap";
+                # Get qsub content
+                qsub_content = get_qsub_content(equity_index_id, regression_model, compute_ep_cycle, include_factor_augmentation, use_refined_BC);
 
-        # block bootstrap
-        elseif subsampling_method == 1
-            subsample = 0.8; # retains 80% of the original data
-            subsampling_mnemonic = "block_bootstrap";
+                # Setup qsub
+                open("index.qsub", "w") do io
+                    write(io, qsub_content)
+                end;
+                
+                # Save backup qsub
+                open("./logs/$(regression_model)/scheduler_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(use_refined_BC).qsub", "w") do io
+                    write(io, qsub_content)
+                end;
 
-        # block jackknife
-        elseif subsampling_method == 2
-            subsample = 0.2; # retains 80% of the original data
-            subsampling_mnemonic = "block_jackknife";
+                # Run qsub
+                run(`qsub index.qsub`);
 
-        # artificial jackknife with d̂
-        elseif subsampling_method == 3
-            subsample = NaN;
-            subsampling_mnemonic = "artificial_jackknife";
-
-        # artificial_jackknife with subsample=50%
-        elseif subsampling_method == 4
-            subsample = 0.5;
-            subsampling_mnemonic = "artificial_jackknife";
-            subsampling_function_id -= 1;
-        end
-
-        # With and without ADL structure / derived BC features
-        for (include_factor_augmentation, use_refined_BC) in [(true, false)]
-
-            # Get qsub content
-            qsub_content = get_qsub_content(equity_index_id, subsample, subsampling_mnemonic, subsampling_function_id, include_factor_augmentation, use_refined_BC)
-
-            # Setup qsub and backup
-            open("index.qsub", "w") do io
-                write(io, qsub_content)
-            end;
-
-            subsample_str = replace("$(ifelse(isnan(subsample), "default", subsample))", "."=>"_");
-            
-            open("./logs/$(subsampling_mnemonic)/ind_$(equity_index_id)_$(include_factor_augmentation)_$(use_refined_BC)_$(subsample_str).qsub", "w") do io
-                write(io, qsub_content)
-            end;
-
-            # Run qsub
-            run(`qsub index.qsub`);
-
-            # Wait before starting the next iteration
-            sleep(2.5);
+                # Wait before starting the next iteration
+                sleep(2.5);
+            end
         end
     end
 end

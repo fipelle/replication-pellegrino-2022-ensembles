@@ -24,8 +24,9 @@ Generate data vintages
 =#
 
 # Macroeconomic indicators
-tickers = ["TCU", "INDPRO", "PCE", "PAYEMS", "EMRATIO", "UNRATE", "PCEPI", "CPIAUCNS", "CPILFENS"];
-tickers_to_deflate = ["PCE"];
+tickers = ["PI", "PCTR", "PCE", "INDPRO", "PAYEMS", "EMRATIO", "UNRATE", "PCEPI", "CPIAUCNS", "CPILFENS"];
+tickers_to_transform = [DataTransformations(:PI, :PCTR, :PIX, -)];
+tickers_to_deflate = ["PIX", "PCE"];
 fred_options = Dict(:realtime_start => "2005-01-31", :realtime_end => "2020-12-31", :observation_start => "1983-01-01"); # 1983 is one year prior to the actual observation_start
 
 # Series classification (WARNING: manual input required)
@@ -55,8 +56,8 @@ sort!(df, :release_dates);
 # Build data vintages
 data_vintages, release_dates = get_vintages_array(df, "m");
 
-# Remove `:PCEPI` from the data vintages, after having used it for deflating the series indicated in `tickers_to_deflate`
-transform_vintages_array!(data_vintages, release_dates, tickers, tickers_to_deflate, n_cons_prices);
+# Remove `:PCEPI` from the data vintages, after having used it for deflating the series indicated in `tickers_to_deflate` and applied the transformations in `tickers_to_transform`
+transform_vintages_array!(data_vintages, release_dates, tickers, tickers_to_transform, tickers_to_deflate, n_cons_prices);
 
 #=
 Setup validation problem

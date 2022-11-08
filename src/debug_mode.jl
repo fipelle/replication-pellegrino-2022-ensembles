@@ -5,10 +5,12 @@ using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, ScikitLearn, Statist
 include("./macro_functions.jl");
 include("./finance_functions.jl");
 
+
 #=
 Load arguments passed through the command line
 =#
 
+#=
 # Equity index id
 equity_index_id = parse(Int64, ARGS[1]);
 
@@ -26,6 +28,9 @@ use_refined_BC = parse(Bool, ARGS[5]);
 
 # Output folder
 log_folder_path = ARGS[6];
+=#
+
+compute_ep_cycle=true; equity_index_id=1; include_factor_augmentation=true; use_refined_BC=true; regression_model=1; log_folder_path="./BC_and_EP_output";
 
 # Fixed number of trees per ensemble
 n_estimators = 500;

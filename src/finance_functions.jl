@@ -1,363 +1,247 @@
 """
-    populate_business_cycle_matrix!(business_cycle_matrix::FloatMatrix, business_cycle_position::Int64, std_diff_data::FloatMatrix, sspace::KalmanSettings, status::DynamicKalmanStatus, t::Int64, lags::Int64)
+    populate_factors_matrices!(factors_matrices::Vector{FloatMatrix}, factors_coordinates::IntVector, factors_associated_scaling::FloatVector, sspace::KalmanSettings, status::DynamicKalmanStatus, t::Int64, lags::Int64)
 
-Populate `business_cycle_matrix` to construct the estimation samples.
+Populate `factors_matrices` to construct the data subsamples.
 """
-function populate_business_cycle_matrix!(business_cycle_matrix::FloatMatrix, business_cycle_position::Int64, std_diff_data::FloatMatrix, sspace::KalmanSettings, status::DynamicKalmanStatus, t::Int64, lags::Int64)
+function populate_factors_matrices!(factors_matrices::Vector{FloatMatrix}, factors_coordinates::IntVector, factors_associated_scaling::FloatVector, sspace::KalmanSettings, status::DynamicKalmanStatus, t::Int64, lags::Int64)
 
-    # Compute business_cycle_matrix for t (current and past values)
-    X_sm, P_sm, X0_sm, P0_sm = ksmoother(sspace, status, t-lags+1);
+    # Run smoother and forecast to reconstruct the past, current and expected future value for the factors
+    X_sm, P_sm, X0_sm, P0_sm = ksmoother(sspace, status, t-lags+1); # smooth up to time period `t-lags+1` (i.e., 1 in the first call and referring to time t==lags)
+    X_fc = kforecast(sspace, status.X_post, lags-1);                # compute `lags-1` predictions for the states
+
+    # Loop over factor selection
+    for i in axes(factors_matrices, 1)
+        
+        # Convenient pointers
+        current_factor_matrix = factors_matrices[i];
+        current_factor_coordinates = factors_coordinates[i];
+        current_factor_associated_scaling = factors_associated_scaling[i];
+
+        # Store lags and expectations for the factor
+        for j=1:lags-1
+            current_factor_matrix[j, t-lags+1] = X_sm[j][current_factor_coordinates] * current_factor_associated_scaling;       # from 1 to lags-1
+            current_factor_matrix[j+lags, t-lags+1] = X_fc[j][current_factor_coordinates] * current_factor_associated_scaling;  # from lags+1 to 2*lags-1 (if lags==12 -> 13 to 23 as expected)
+        end
+        
+        # Store present conditions for the factor
+        current_factor_matrix[lags, t-lags+1] = X_sm[lags][current_factor_coordinates] * current_factor_associated_scaling;
+    end
+end
+
+"""
+    transform_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64)
+
+Return a transformed version of the latest non-zero columns in `factors_matrices`.
+"""
+function transform_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64)
+
+    # Pre-allocate container for output
+    transformed_factor_vectors = Vector{FloatVector}(undef, length(factors_matrices));
+
+    # Loop over factor selection
+    for i in axes(factors_matrices, 1)
+
+        # Convenient pointer
+        current_factor_matrix = factors_matrices[i];
+
+        # Initialise `transformed_current_factor_vector` with the latest non-zero column in `current_factor_matrix`
+        transformed_current_factor_vector = current_factor_matrix[:, t-lags+1];
+        
+        # Changes
+        transformed_current_factor_vector = vcat(transformed_current_factor_vector, diff(transformed_current_factor_vector));
+
+        if lags > 2
+            
+            # Present vs past (excl. BC_{t} - BC_{t-1} since it is already accounted for in the changes)
+            transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags] .- transformed_current_factor_vector[1:lags-2]);
+
+            # Future conditions vs present (excl. BC_{t+1} - BC_{t} since it is already accounted for in the changes)
+            transformed_current_factor_vector = vcat(transformed_current_factor_vector, transformed_current_factor_vector[lags+2:2*lags-1] .- transformed_current_factor_vector[lags]);
+        end
+
+        # Update output
+        transformed_factor_vectors[i] = transformed_current_factor_vector;
+    end
+
+    # Return output
+    return transformed_factor_vectors;
+end
+
+"""
+    get_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64)
+
+Return the latest non-zero columns in `factors_matrices`.
+"""
+get_latest_in_factors_matrices(factors_matrices::Vector{FloatMatrix}, t::Int64, lags::Int64) = [factors_matrices[i][:, t-lags+1] for i in axes(factors_matrices, 1)];
+
+"""
+    populate_predictors_matrix!(predictors_matrix::FloatMatrix, equity_index::FloatVector, transformed_factor_vectors::Vector{FloatVector}, t::Int64, lags::Int64)
+
+Populate `predictors_matrix` to construct the data subsamples.
+"""
+function populate_predictors_matrix!(predictors_matrix::FloatMatrix, equity_index::FloatVector, transformed_factor_vectors::Vector{FloatVector}, t::Int64, lags::Int64)
+    
+    # Autoregressive predictors
     for i=1:lags
-        business_cycle_matrix[i, t-lags+1] = X_sm[i][business_cycle_position] .* std_diff_data[1];
+        predictors_matrix[i, t-lags+1] = equity_index[t-lags+i];
     end
-
-    X_fc = kforecast(sspace, status.X_post, lags-1);
-    for i=1:lags-1
-        business_cycle_matrix[i+lags, t-lags+1] = X_fc[i][business_cycle_position] .* std_diff_data[1];
+    
+    # Add transformed_factor_matrices to predictors (if required)
+    if length(transformed_factor_vectors) > 0
+        predictors_matrix[lags+1:end, t-lags+1] = vcat(transformed_factor_vectors...);
     end
 end
 
 """
-    get_target_and_predictors_estimation(current_business_cycle_matrix::FloatMatrix, current_equity_index::FloatMatrix, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
+    get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Nothing, existing_std_diff_data::Nothing)
 
-Return target and predictors for estimation.
+Run `ecm(...)` to compute `sspace`.
+
+    get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::KalmanSettings, existing_std_diff_data::FloatMatrix)
+
+Update and return `existing_sspace`.
 """
-function get_target_and_predictors_estimation(current_business_cycle_matrix::FloatMatrix, current_equity_index::FloatMatrix, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
-
-    # Macro
-    predictors_business_cycle = current_business_cycle_matrix[:, 1:end-1];
-
-    if use_refined_BC
-
-        # Changes
-        predictors_business_cycle = vcat(predictors_business_cycle, diff(predictors_business_cycle, dims=1));
-
-        if lags > 2
-        
-            # Present vs past (excl. BC_{t} - BC_{t-1} since it is already accounted for in the changes)
-            predictors_business_cycle = vcat(predictors_business_cycle, predictors_business_cycle[lags, :]' .- predictors_business_cycle[1:lags-2, :]);
-            
-            # Future conditions vs present (excl. BC_{t+1} - BC_{t} since it is already accounted for in the changes)
-            predictors_business_cycle = vcat(predictors_business_cycle, predictors_business_cycle[lags+2:end, :] .- predictors_business_cycle[lags, :]');
-        end
-    end
-
-    # Finance
-    target, predictors_equity_index = lag(current_equity_index, lags);
-    predictors_equity_index = reverse(predictors_equity_index, dims=1); # for internal consistency with `predictors_business_cycle`
-
-    # Predictors
-    if include_factor_augmentation
-        predictors = vcat(predictors_equity_index, predictors_business_cycle);
-    else
-        predictors = predictors_equity_index;
-    end
-
-    # Transpose target and predictors to match DecisionTree
-    target = target[:];
-    predictors = permutedims(predictors);
-
-    # Return output
-    return target, predictors;
-end
-
-"""
-    get_target_and_predictors_forecasting(last_business_cycle_matrix_col::FloatVector, current_equity_index::FloatMatrix, next_equity_index_obs::Float64, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
-    get_target_and_predictors_forecasting(current_business_cycle_matrix::FloatMatrix, current_equity_index::FloatMatrix, next_equity_index_obs::Float64, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
-
-Return target and predictors for forecasting.
-"""
-function get_target_and_predictors_forecasting(last_business_cycle_matrix_col::FloatVector, current_equity_index::FloatMatrix, next_equity_index_obs::Float64, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool)
-
-    # Macro
-    predictors_business_cycle = copy(last_business_cycle_matrix_col);
-
-    if use_refined_BC
-
-        # Changes
-        predictors_business_cycle = vcat(predictors_business_cycle, diff(predictors_business_cycle, dims=1));
-
-        if lags > 2
-        
-            # Present vs past (excl. BC_{t} - BC_{t-1} since it is already accounted for in the changes)
-            predictors_business_cycle = vcat(predictors_business_cycle, predictors_business_cycle[lags] .- predictors_business_cycle[1:lags-2]);
-            
-            # Future conditions vs present (excl. BC_{t+1} - BC_{t} since it is already accounted for in the changes)
-            predictors_business_cycle = vcat(predictors_business_cycle, predictors_business_cycle[lags+2:end] .- predictors_business_cycle[lags]);
-        end
-    end
-
-    # Finance
-    predictors_equity_index = current_equity_index[1, end-lags+1:end];
-
-    # Predictors
-    if include_factor_augmentation
-        predictors = vcat(predictors_equity_index, predictors_business_cycle);
-    else
-        predictors = predictors_equity_index;
-    end
-
-    # Outturn
-    outturn = next_equity_index_obs;
-
-    # Return output
-    return outturn, predictors;
-end
-
-get_target_and_predictors_forecasting(current_business_cycle_matrix::FloatMatrix, current_equity_index::FloatMatrix, next_equity_index_obs::Float64, lags::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool) = get_target_and_predictors_forecasting(current_business_cycle_matrix[:, end], current_equity_index, next_equity_index_obs, lags, include_factor_augmentation, use_refined_BC);
-
-"""
-    get_selection_samples(macro_data::JMatrix{Float64}, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-    get_selection_samples(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-
-Return selection samples. `macro_data` and `equity_index` are in the format required by MessyTimeSeries.jl.
-"""
-function get_selection_samples(macro_data::JMatrix{Float64}, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-
-    # Initial settings
-    lags = Int64(optimal_hyperparams[1]);
-
-    # Memory pre-allocation for output
-    estimation_samples_target = Vector{FloatVector}();
-    estimation_samples_predictors = Vector{FloatMatrix}();
-    validation_samples_target = Vector{Float64}();
-    validation_samples_predictors = Vector{FloatVector}();
+function get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Nothing, existing_std_diff_data::Nothing)
 
     # Get trend-cycle model structure (estimated with data up to t0 - included)
     estim, std_diff_data = get_tc_structure(macro_data[:, 1:t0], optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
-
-    # Get trend-cycle model structure (estimated with full data)
-    estim_full, std_diff_data_full = get_tc_structure(macro_data, optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
-
+    
     # Estimate the trend-cycle model with (estimated with data up to t0 - included)
-    sspace = ecm(estim, output_sspace_data=macro_data./std_diff_data);
-    status = DynamicKalmanStatus();
-    business_cycle_matrix = zeros(2*lags-1, sspace.Y.T-lags+1);
-
-    # Estimate the trend-cycle model (estimated with full data)
-    sspace_full = ecm(estim_full);
-    status_full = DynamicKalmanStatus();
-    business_cycle_matrix_full = zeros(2*lags-1, sspace.Y.T-lags+1);
-
-    # Business cycle position in sspace
-    business_cycle_position = findlast(sspace.B[1,:] .== 1);
-
-    # Compute the business cycle vintages required to structure the estimation and validation samples in a pseudo out-of-sample fashion
-    for t in axes(macro_data, 2)
-
-        # Kalman filter iteration
-        kfilter!(sspace, status);
-        kfilter!(sspace_full, status_full);
-
-        if t >= lags
-
-            populate_business_cycle_matrix!(business_cycle_matrix, business_cycle_position, std_diff_data, sspace, status, t, lags);
-            populate_business_cycle_matrix!(business_cycle_matrix_full, business_cycle_position, std_diff_data_full, sspace_full, status_full, t, lags);
-
-            if t >= t0
-
-                # Input data based on model estimated with data up to t0 (included)
-                current_equity_index = permutedims(equity_index[1:t]);
-                next_equity_index_obs = equity_index[t+1]; # Float64
-                current_business_cycle_matrix = business_cycle_matrix[:, 1:t-lags+1]; # also include most recent obs.
-
-                # Build predictors: estimation sample
-                if (t == t0) || (t == sspace.Y.T)
-
-                    # Get target and predictors (estimation)
-                    if t == t0
-                        estimation_target, estimation_predictors = get_target_and_predictors_estimation(current_business_cycle_matrix, current_equity_index, lags, include_factor_augmentation, use_refined_BC);
-                    else
-                        # `business_cycle_matrix_full` is fine since t == sspace.Y.T
-                        estimation_target, estimation_predictors = get_target_and_predictors_estimation(business_cycle_matrix_full, current_equity_index, lags, include_factor_augmentation, use_refined_BC);
-                    end
-
-                    # Update output
-                    push!(estimation_samples_target, estimation_target);
-                    push!(estimation_samples_predictors, estimation_predictors);
-                end
-
-                # Build predictors: validation sample
-                if t != t0
-
-                    # Get target and predictors (forecasting)
-                    validation_target, validation_predictors = get_target_and_predictors_forecasting(current_business_cycle_matrix, current_equity_index, next_equity_index_obs, lags, include_factor_augmentation, use_refined_BC);
-
-                    # Update output
-                    push!(validation_samples_target, validation_target);
-                    push!(validation_samples_predictors, validation_predictors);
-                end
-            end
-        end
-    end
-
-    # Return output 
-    return sspace_full, std_diff_data_full, business_cycle_position, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors;
+    return ecm(estim, output_sspace_data=macro_data./std_diff_data), std_diff_data; # using the optional keyword argument `output_sspace_data` allows `ecm(...)` to construct the validation samples
 end
 
-function get_selection_samples(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
+function get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::KalmanSettings, existing_std_diff_data::FloatMatrix)
+    MessyTimeSeriesOptim.update_sspace_data!(existing_sspace, macro_data./existing_std_diff_data);
+    return existing_sspace, existing_std_diff_data;
+end
 
+"""
+    get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Union{Nothing, KalmanSettings}=nothing, existing_std_diff_data::Union{Nothing, FloatMatrix}=nothing)
+
+Return macro data partitions compatible with tree ensembles.
+"""
+function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Union{Nothing, KalmanSettings}=nothing, existing_std_diff_data::Union{Nothing, FloatMatrix}=nothing)
+    
     # Extract data from `macro_vintage`
     macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
     macro_data = permutedims(macro_data);
-
-    # Return selection samples
-    return get_selection_samples(macro_data, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
-end
-
-"""
-    get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-
-Return selection samples compatible with tree aggregators based on pair bootstrap.
-"""
-function get_selection_samples_bootstrap(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
     
-    # Train and validation samples
-    ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_selection_samples(macro_vintage, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
-
-    # Estimation and selection samples
-    training_samples_target = estimation_samples_target[1];
-    training_samples_predictors = estimation_samples_predictors[1];
-    selection_samples_target = estimation_samples_target[2];
-    selection_samples_predictors = estimation_samples_predictors[2];
-
-    # Return output
-    return ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors;
-end
-
-"""
-    get_selection_samples_custom(io::IOStream, subsampling_function::Function, subsample::Float64, macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-
-Return selection samples compatible with tree aggregators based on custom subsampling methods.
-"""
-function get_selection_samples_custom(io::IOStream, subsampling_function::Function, subsample::Float64, macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, coordinates_params_rescaling::Vector{Vector{Int64}})
-
-    # Build macro_finance_data for estimation
-    macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
-    macro_finance_data = [equity_index[1:size(macro_data,1)+1]'; macro_data' missing.*ones(n_series)];
-
-    # Compute d̂ when needed 
-    if (subsampling_function === artificial_jackknife) && isnan(subsample)
-        n, T = size(@view macro_finance_data[:, 1:end-1]);
-        d = optimal_d(n, T);
-        subsample = d/(n*T);
+    # Check size of `equity_index`
+    if length(equity_index) != size(macro_data, 2) + 1
+        error("`equity_index` must have an extra entry at the end compared to the macro vintage! Note that the first observation must refer to the same point in time.");
     end
-
-    # Construct subsamples
-    if subsampling_function === block_jackknife
-        custom_data = subsampling_function(macro_finance_data, subsample); # use all block jackknife samples
-    else
-        custom_data = subsampling_function(macro_finance_data, subsample, max_samples);
-    end
-
-    # Memory pre-allocation
-    ecm_kalman_settings = Vector{KalmanSettings}();
-    ecm_std_diff_data = Vector{FloatMatrix}();
-    training_samples_target = Vector{FloatVector}();
-    selection_samples_target = Vector{FloatVector}();
-    training_samples_predictors = Vector{FloatMatrix}();
-    selection_samples_predictors = Vector{FloatMatrix}();
-
-    # Loop over subsamples
-    for i in axes(custom_data, 3)
-        
-        @info("Subsample $(i) out of $(size(custom_data, 3))");
-        flush(io);
-
-        # Retrieve data
-        current_equity_index = custom_data[1, :, i];
-        current_macro_data = custom_data[2:end, 1:end-1, i];
-
-        # Start from first not missing
-        first_not_missing = findfirst(.~ismissing.(current_equity_index));
-        if max(first_not_missing, sum(ismissing.(current_equity_index))) > 0.6*length(current_equity_index)
-            @info("- Skipping subsample $(i): not enough datapoints");
-            continue; # i.e., not enough datapoints -> skip subsample
-        else
-            current_equity_index = current_equity_index[first_not_missing:end];
-            current_macro_data = current_macro_data[:, first_not_missing:end];
-        end
-
-        # Interpolate `current_equity_index` missings with an expanding one-sided mean
-        for t in findall(ismissing.(current_equity_index))
-            current_equity_index[t] = mean_skipmissing(current_equity_index[1:t-1]);
-        end
-        current_equity_index = current_equity_index |> FloatVector;
-        
-        # Update training and selection samples
-        sspace_full, std_diff_data_full, _, estimation_samples_target, estimation_samples_predictors, _, _ = get_selection_samples(current_macro_data, current_equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
-        push!(ecm_kalman_settings, sspace_full);
-        push!(ecm_std_diff_data, std_diff_data_full);
-        push!(training_samples_target, estimation_samples_target[1]);
-        push!(selection_samples_target, estimation_samples_target[2]);
-        push!(training_samples_predictors, estimation_samples_predictors[1]);
-        push!(selection_samples_predictors, estimation_samples_predictors[2]);
-    end
-
-    # Train and validation samples
-    _, _, business_cycle_position, _, _, validation_samples_target, validation_samples_predictors = get_selection_samples(first_data_vintage, equity_index, t0, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, coordinates_params_rescaling);
-
-    # Return output
-    return ecm_kalman_settings, ecm_std_diff_data, business_cycle_position, training_samples_target, training_samples_predictors, selection_samples_target, selection_samples_predictors, validation_samples_target, validation_samples_predictors;
-end
-
-"""
-    get_oos_samples(ecm_kalman_settings::KalmanSettings, ecm_std_diff_data::FloatMatrix, business_cycle_position::Int64, macro_vintage::AbstractDataFrame, equity_index::FloatVector, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
-    get_oos_samples(ecm_kalman_settings::Vector{KalmanSettings}, ecm_std_diff_data::Vector{FloatMatrix}, business_cycle_position::Int64, macro_vintage::AbstractDataFrame, equity_index::FloatVector, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
-
-Return the outturn and up-to-date predictors. 
-"""
-function get_oos_samples(ecm_kalman_settings::KalmanSettings, ecm_std_diff_data::FloatMatrix, business_cycle_position::Int64, macro_vintage::AbstractDataFrame, equity_index::FloatVector, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
 
     # Initial settings
     lags = Int64(optimal_hyperparams[1]);
 
-    # Data
-    macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
-    macro_data = permutedims(macro_data);
+    # Predictors
+    predictors_matrix = zeros(lags + include_factor_augmentation*(1+compute_ep_cycle)*(use_refined_BC*(6*lags-7) + (1-use_refined_BC)*(2*lags-1)), size(macro_data, 2)-lags+1); # includes both the autoregressive part and the factor augmentation (if any) and its transformations (if required)
+    
+    if include_factor_augmentation
 
-    # Update KalmanSettings with up-to-date data
-    MessyTimeSeriesOptim.update_sspace_data!(ecm_kalman_settings, macro_data./ecm_std_diff_data);
+        sspace, std_diff_data = get_sspace(macro_data, t0, optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling, existing_sspace, existing_std_diff_data);
+        status = DynamicKalmanStatus();
 
-    # Initialise `last_business_cycle_matrix_col`
-    last_business_cycle_matrix_col = zeros(2*lags-1);
+        # Factors data
+        factors_matrices = [zeros(2*lags-1, sspace.Y.T-lags+1)]; # `2*lags-1` denotes the present plus `lags-1` lags (realised) and `lags-1` forward points (expected), sspace.Y.T refers to the full `macro_data` (i.e., not just up to t0) due to the keyword argument discussed above
+        factors_coordinates = [findlast(sspace.B[1, :] .== 1)];  # business cycle's coordinates
+        factors_associated_scaling = [std_diff_data[1]];
 
-    # Compute business cycle
-    status = kfilter_full_sample(ecm_kalman_settings);
-    X_sm, P_sm, X0_sm, P0_sm = ksmoother(ecm_kalman_settings, status, ecm_kalman_settings.Y.T-lags+1);
-    for i=1:lags
-        last_business_cycle_matrix_col[i] = X_sm[i][business_cycle_position] .* ecm_std_diff_data[1];
+        if compute_ep_cycle
+            push!(factors_matrices, zeros(2*lags-1, sspace.Y.T-lags+1));
+            push!(factors_coordinates, findlast(sspace.B[n_cycles, :] .== 1)); # energy price cycle's coordinates
+            push!(factors_associated_scaling, std_diff_data[n_cycles]);
+        end
+    
+    else
+        sspace = nothing;
+        std_diff_data = nothing;
     end
 
-    # Compute business cycle future conditions
-    X_fc = kforecast(ecm_kalman_settings, status.X_post, lags-1);
-    for i=1:lags-1
-        last_business_cycle_matrix_col[i+lags] = X_fc[i][business_cycle_position] .* ecm_std_diff_data[1];
+    # Compute the business cycle vintages required to structure the estimation and validation samples in a pseudo out-of-sample fashion
+    for t in axes(macro_data, 2)
+        
+        # Kalman filter iteration
+        if include_factor_augmentation
+            kfilter!(sspace, status);
+        end
+
+        if t >= lags
+            
+            if include_factor_augmentation
+
+                # Populate `factors_matrices` (the first reference data is the time period t==lags)
+                populate_factors_matrices!(factors_matrices, factors_coordinates, factors_associated_scaling, sspace, status, t, lags);
+
+                # Generate `transformed_factor_vectors` (i.e., transform the latest column in the entries of `factors_matrices`)
+                if use_refined_BC
+                    transformed_factor_vectors = transform_latest_in_factors_matrices(factors_matrices, t, lags);
+                else
+                    transformed_factor_vectors = get_latest_in_factors_matrices(factors_matrices, t, lags);
+                end
+                
+            else
+                transformed_factor_vectors = Vector{FloatVector}();
+            end
+            
+            # Populate `predictors_matrix` (the first reference data is the time period t==lags)
+            populate_predictors_matrix!(predictors_matrix, equity_index, transformed_factor_vectors, t, lags);
+        end
     end
 
-    # Equity index
-    current_equity_index = permutedims(equity_index[1:ecm_kalman_settings.Y.T]);
-    next_equity_index_obs = equity_index[ecm_kalman_settings.Y.T+1];
-
-    # Outturn and predictors
-    outturn, predictors = get_target_and_predictors_forecasting(last_business_cycle_matrix_col, current_equity_index, next_equity_index_obs, lags, include_factor_augmentation, use_refined_BC);
-
+    # The first column in `predictors_matrix` includes data on the `equity_index` from 1 to lags thus `target_vector` starts from lags+1
+    target_vector = equity_index[lags+1:end]; # it has the same size than `predictors_matrix` since `equity_index` has an extra entry at the end
+    
+    # Estimation is up to t==t0
+    estimation_samples_target = target_vector[1:t0-lags+1];
+    estimation_samples_predictors = predictors_matrix[:, 1:t0-lags+1];
+    
+    # Validation is for t>t0
+    if length(target_vector) > t0-lags+1
+        validation_samples_target = target_vector[t0-lags+2:end];
+        validation_samples_predictors = predictors_matrix[:, t0-lags+2:end];
+    else
+        validation_samples_target = Float64[];
+        validation_samples_predictors = Matrix{Float64}[];
+    end
+    
     # Return output
-    return outturn, predictors;
+    return sspace, std_diff_data, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors;
 end
 
-function get_oos_samples(ecm_kalman_settings::Vector{KalmanSettings}, ecm_std_diff_data::Vector{FloatMatrix}, business_cycle_position::Int64, macro_vintage::AbstractDataFrame, equity_index::FloatVector, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool)
+"""
+    estimate_skl_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
 
-    # Memory pre-allocation
-    outturn = 0.0;
-    predictors = Vector{FloatVector}();
+Estimate `model` given the settings in `model_settings`.
+"""
+function estimate_skl_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+    
+    # Generate `model` instance
+    model_instance = model(; model_settings...);
+    
+    # Estimation
+    ScikitLearn.fit!(model_instance, permutedims(estimation_samples_predictors), estimation_samples_target); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+    
+    # Return model instance
+    return model_instance;
+end
 
-    # Construct a range of predictors using the estimated vector of kalman settings
-    for i in axes(ecm_kalman_settings, 1)
-        outturn, current_predictors = get_oos_samples(ecm_kalman_settings[i], ecm_std_diff_data[i], business_cycle_position, macro_vintage, equity_index, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC);
-        push!(predictors, current_predictors);
-    end
+"""
+    estimate_and_validate_skl_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+
+Estimate and validate `model` given the settings in `model_settings`.
+"""
+function estimate_and_validate_skl_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+
+    # Generate model instance
+    model_instance = estimate_skl_model(estimation_samples_target, estimation_samples_predictors, model, model_settings);
+
+    # Validation sample forecasts
+    validation_forecasts = ScikitLearn.predict(model_instance, permutedims(validation_samples_predictors)); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+
+    # Compute validation error
+    validation_error = mean((validation_samples_target .- validation_forecasts).^2);
 
     # Return output
-    return outturn, predictors;
+    return model_instance, validation_forecasts, validation_error;
 end

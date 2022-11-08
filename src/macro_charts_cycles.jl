@@ -65,22 +65,20 @@ trends_skeleton, cycles_skeleton, drifts_selection, trends_free_params, cycles_f
 n_trends = length(drifts_selection);
 non_stationary_skeleton = vcat([ifelse(drifts_selection[i], [1.0; 0.0; 2.0; 0.0], [1.0; 0.0]) for i=1:n_trends]...);
 ind_trends = findall(non_stationary_skeleton .== 1);
-ind_drifts = findall(non_stationary_skeleton .== 2);
-last_trend = findlast(non_stationary_skeleton .== 1)+1;
-ind_idio_cycles = collect(last_trend+1:2:last_trend+n_series*2);
-ind_bc_cycle = last_trend+n_series*2+1;
+last_non_stationary = length(non_stationary_skeleton);
+ind_idio_cycles = collect(last_non_stationary+1:2:last_non_stationary+n_series*2);
+ind_bc_cycle = last_non_stationary+n_series*2+1;
 ind_ep_cycle = ind_bc_cycle+estim.lags+1;
 
 # States of interest
 smoothed_trends = std_diff_data .* (sspace.B[:, ind_trends]*smoothed_states[ind_trends, :]);
-smoothed_drifts = std_diff_data[findall(drifts_selection)] .* smoothed_states[ind_drifts, :];
 smoothed_idio_cycles = std_diff_data .* smoothed_states[ind_idio_cycles, :];
 smoothed_bc_cycle = std_diff_data .* (sspace.B[:, ind_bc_cycle:ind_bc_cycle+estim.lags-1]*smoothed_states[ind_bc_cycle:ind_bc_cycle+estim.lags-1, :]);
 smoothed_ep_cycle = std_diff_data .* (sspace.B[:, ind_ep_cycle:end-1]*smoothed_states[ind_ep_cycle:end-1, :]);
 
 # Custom rescaling
+iis_data ./= custom_rescaling;
 smoothed_trends ./= custom_rescaling;
-smoothed_drifts ./= custom_rescaling[2:4];
 smoothed_idio_cycles ./= custom_rescaling;
 smoothed_bc_cycle ./= custom_rescaling;
 smoothed_ep_cycle ./= custom_rescaling;
@@ -102,6 +100,14 @@ c1 = colorant"rgba(0, 48, 158, .75)";
 c2 = colorant"rgba(255, 0, 0, .75)";
 c3 = colorant"rgba(255, 190, 0, .75)";
 
+
+#=
+--------------------------------------------------------------------------------------------------------------------------------
+Historical decomposition
+--------------------------------------------------------------------------------------------------------------------------------
+=#
+
+# Manual input
 axs = Array{Any}(undef, 9);
 
 for i=1:9
@@ -141,3 +147,47 @@ fig = @pgf TikzPicture(GroupPlot(
 );
 
 pgfsave("./img/cycles_$(compute_ep_cycle)_$(pre_covid).pdf", fig);
+
+#=
+--------------------------------------------------------------------------------------------------------------------------------
+Trends
+--------------------------------------------------------------------------------------------------------------------------------
+=#
+
+# Manual input
+axs = Array{Any}(undef, 9);
+
+for i=1:9
+    legend_style_content = ifelse(i==1, raw"{column sep = 10pt, legend columns = -1, legend to name = grouplegend, draw=none,}", "");
+    axs[i] = @pgf Axis(
+        {   
+            "bar width=0.1pt",
+            date_coordinates_in = "x",
+            xticklabel=raw"{\year}",
+            title = names(data_vintages[1])[i+1],
+            grid = "both",
+            xmin=ref_dates_grid[1],
+            xmax=ref_dates_grid[end],
+            ylabel=units[i],
+            "ylabel absolute",
+            legend_style=legend_style_content,
+        },
+
+        Plot({no_marks, style={"thick"}, color="black"}, Table([ref_dates_grid, iis_data[i,:]])),
+        Plot({no_marks, style={"thick"}, color="blue"}, Table([ref_dates_grid, smoothed_trends[i,:]])),
+        ifelse(i==1, Legend("Data", "Trend"), {});
+    );
+end
+
+fig = @pgf TikzPicture(GroupPlot(
+    { group_style = {group_size="3 by 3", vertical_sep="60pt", horizontal_sep="60pt"},
+      no_markers,
+      legend_pos="north west",
+      height="150pt",
+      width="225pt"
+    },
+    axs...),
+    raw"\node at ($(group c2r3) + (0,-3.25cm)$) {\ref{grouplegend}};",
+);
+
+pgfsave("./img/trends_$(compute_ep_cycle)_$(pre_covid).pdf", fig);
