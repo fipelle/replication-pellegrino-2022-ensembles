@@ -22,7 +22,7 @@ compute_ep_cycle = parse(Bool, ARGS[3]);
 include_factor_augmentation = parse(Bool, ARGS[4]);
 
 # Use factors transformations as well as the level
-use_refined_BC = parse(Bool, ARGS[5]);
+include_factor_transformations = parse(Bool, ARGS[5]);
 
 # Output folder
 log_folder_path = ARGS[6];
@@ -34,7 +34,7 @@ n_estimators = 500;
 Setup logger
 =#
 
-io = open("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(use_refined_BC).txt", "w+");
+io = open("$(log_folder_path)/$(regression_model)/status_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(include_factor_transformations).txt", "w+");
 global_logger(ConsoleLogger(io));
 
 #=
@@ -46,7 +46,7 @@ First log entries
 @info("regression_model: $(regression_model)")
 @info("compute_ep_cycle: $(compute_ep_cycle)");
 @info("include_factor_augmentation: $(include_factor_augmentation)");
-@info("use_refined_BC: $(use_refined_BC)");
+@info("include_factor_transformations: $(include_factor_transformations)");
 @info("log_folder_path: $(log_folder_path)");
 @info("n_estimators: $(n_estimators)");
 flush(io);
@@ -106,7 +106,7 @@ estimation_sample_length = fld(size(first_data_vintage, 1), 2);
 validation_sample_length = size(first_data_vintage, 1) - estimation_sample_length;
 
 # Get training and validation samples
-_, _, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+_, _, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
 
 @info("------------------------------------------------------------")
 @info("Construct hyperparameters grid");
@@ -162,7 +162,7 @@ This operation produces forecasts referring to every month from 2005-02-28 to 20
 =#
 
 # Estimate on full selection sample
-sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length+validation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length+validation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
 optimal_rf_instance = estimate_skl_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, optimal_rf_settings);
 
 # The equity index value for 2005-01-31 is used in the estimation. This offset allows to start the next calculations from the next reference point and to be a truly out-of-sample exercise
@@ -182,7 +182,7 @@ for v in axes(forecast_array, 1)
     current_data_vintage_length = size(current_data_vintage, 1);
 
     # Compute predictor matrix and get outturn for the target
-    _, _, _, _, current_target, current_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length-1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, use_refined_BC, compute_ep_cycle, n_cycles, coordinates_params_rescaling, sspace, std_diff_data);
+    _, _, _, _, current_target, current_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length-1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling, sspace, std_diff_data);
 
     # Store new forecast
     forecast_array[v] = ScikitLearn.predict(optimal_rf_instance, permutedims(current_predictors))[end]; # the function returns a 1-dimensional vector
@@ -210,12 +210,12 @@ equity_index_ref_oos = equity_index_ref[1+offset_vintages:end];
 distance_from_reference_month = Dates.value.(equity_index_ref_oos-release_dates_oos);
 
 # Store output
-save("$(log_folder_path)/$(regression_model)/output_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(use_refined_BC).jld", 
+save("$(log_folder_path)/$(regression_model)/output_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(include_factor_transformations).jld", 
     Dict("equity_index_id" => equity_index_id,
          "regression_model" => regression_model,
          "compute_ep_cycle" => compute_ep_cycle,
          "include_factor_augmentation" => include_factor_augmentation,
-         "use_refined_BC" => use_refined_BC,
+         "include_factor_transformations" => include_factor_transformations,
          "sspace" => sspace,
          "std_diff_data" => std_diff_data,
          "grid_hyperparameters" => grid_hyperparameters, 

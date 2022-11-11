@@ -116,11 +116,11 @@ function get_sspace(macro_data::Union{FloatMatrix, JMatrix{Float64}}, t0::Int64,
 end
 
 """
-    get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Union{Nothing, KalmanSettings}=nothing, existing_std_diff_data::Union{Nothing, FloatMatrix}=nothing)
+    get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, include_factor_transformations::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Union{Nothing, KalmanSettings}=nothing, existing_std_diff_data::Union{Nothing, FloatMatrix}=nothing)
 
 Return macro data partitions compatible with tree ensembles.
 """
-function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, use_refined_BC::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Union{Nothing, KalmanSettings}=nothing, existing_std_diff_data::Union{Nothing, FloatMatrix}=nothing)
+function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_index::FloatVector, t0::Int64, optimal_hyperparams::FloatVector, model_args::Tuple, model_kwargs::NamedTuple, include_factor_augmentation::Bool, include_factor_transformations::Bool, compute_ep_cycle::Bool, n_cycles::Int64, coordinates_params_rescaling::Vector{Vector{Int64}}, existing_sspace::Union{Nothing, KalmanSettings}=nothing, existing_std_diff_data::Union{Nothing, FloatMatrix}=nothing)
     
     # Extract data from `macro_vintage`
     macro_data = macro_vintage[:, 2:end] |> JMatrix{Float64};
@@ -135,7 +135,7 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     lags = Int64(optimal_hyperparams[1]);
 
     # Predictors
-    predictors_matrix = zeros(lags + include_factor_augmentation*(1+compute_ep_cycle)*(use_refined_BC*(6*lags-7) + (1-use_refined_BC)*(2*lags-1)), size(macro_data, 2)-lags+1); # includes both the autoregressive part and the factor augmentation (if any) and its transformations (if required)
+    predictors_matrix = zeros(lags + include_factor_augmentation*(1+compute_ep_cycle)*(include_factor_transformations*(6*lags-7) + (1-include_factor_transformations)*(2*lags-1)), size(macro_data, 2)-lags+1); # includes both the autoregressive part and the factor augmentation (if any) and its transformations (if required)
     
     if include_factor_augmentation
 
@@ -174,7 +174,7 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
                 populate_factors_matrices!(factors_matrices, factors_coordinates, factors_associated_scaling, sspace, status, t, lags);
 
                 # Generate `transformed_factor_vectors` (i.e., transform the latest column in the entries of `factors_matrices`)
-                if use_refined_BC
+                if include_factor_transformations
                     transformed_factor_vectors = transform_latest_in_factors_matrices(factors_matrices, t, lags);
                 else
                     transformed_factor_vectors = get_latest_in_factors_matrices(factors_matrices, t, lags);

@@ -1,13 +1,13 @@
 using Dates, DataFrames, DecisionTree, StableRNGs, Statistics, JLD, MessyTimeSeries;
 
-function retrieve_rel_errors(output_folder_name::String, index_id::Int64, include_factor_augmentation::Bool, use_refined_BC::Bool; exclude_2020::Bool=true)
+function retrieve_rel_errors(output_folder_name::String, index_id::Int64, include_factor_augmentation::Bool, include_factor_transformations::Bool; exclude_2020::Bool=true)
     
     # Models
-    pair_bootstrap = read(jldopen("./$(output_folder_name)/pair_bootstrap/equity_index_$(index_id)_$(include_factor_augmentation)_$(use_refined_BC)_default.jld")["forecast_array"])
-    artificial_jackknife = read(jldopen("./$(output_folder_name)/artificial_jackknife/equity_index_$(index_id)_$(include_factor_augmentation)_$(use_refined_BC)_default.jld")["forecast_array"])
+    pair_bootstrap = read(jldopen("./$(output_folder_name)/pair_bootstrap/equity_index_$(index_id)_$(include_factor_augmentation)_$(include_factor_transformations)_default.jld")["forecast_array"])
+    artificial_jackknife = read(jldopen("./$(output_folder_name)/artificial_jackknife/equity_index_$(index_id)_$(include_factor_augmentation)_$(include_factor_transformations)_default.jld")["forecast_array"])
     
     # Outturn
-    outturn = read(jldopen("./$(output_folder_name)/artificial_jackknife/equity_index_$(index_id)_$(include_factor_augmentation)_$(use_refined_BC)_default.jld")["outturn_array"])
+    outturn = read(jldopen("./$(output_folder_name)/artificial_jackknife/equity_index_$(index_id)_$(include_factor_augmentation)_$(include_factor_transformations)_default.jld")["outturn_array"])
 
     # Squared errors
     se_pair_bootstrap = (pair_bootstrap-outturn).^2;
