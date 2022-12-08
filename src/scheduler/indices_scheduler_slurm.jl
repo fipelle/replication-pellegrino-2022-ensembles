@@ -10,7 +10,7 @@ function get_sbatch_content(equity_index_id::Int64, regression_model::Int64, com
 
     #SBATCH --partition=xlarge
     #SBATCH --nodes=1
-    #SBATCH --cpus-per-task 4
+    #SBATCH --cpus-per-task 1
     #SBATCH --job-name=$(sbatch_name)
     #SBATCH --error=./logs/$(regression_model)/%x_%N_%j.err
     #SBATCH --output=./logs/$(regression_model)/%x_%N_%j.out
