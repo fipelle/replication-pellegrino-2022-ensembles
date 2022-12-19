@@ -19,15 +19,14 @@ push!(PGFPlotsX.CUSTOM_PREAMBLE,
             }"
 )
 
-# Manual input
+# Series classification (WARNING: manual input required)
 pre_covid = true;
 compute_ep_cycle = false;
-n_series = 9;
-n_cycles = 7; # shortcut to denote the variable that identifies the energy cycle
-n_cons_prices = 2;
+n_cycles = 7;               # shortcut to denote the variable that identifies the energy cycle (i.e., `WTISPLC` after having included it prior to `PCEPI`)
+n_cons_prices = 2;          # number of consumer price indices in the dataset
 
 units = ["Percent", "Index (2012=100)", "Bil. Chn. 2012", "Mil. of persons", "Percent", "Percent", "Percent", "Percent", "Percent"];
-custom_rescaling = [1, 1, 1, 1000, 1, 1, 1, 1, 1];
+custom_rescaling = [1, 1, 1, 1000, 1, 1, 1, 1, 1]; # original scaling for PAYEMS is thous. of persons
 
 # Data
 if compute_ep_cycle == false
@@ -37,10 +36,12 @@ else
 end
 data_vintages = read(macro_output["data_vintages"]);
 
+n_series = size(data_vintages[end],2) - 1; # series - ref dates
+
 if pre_covid
-    iis_data = data_vintages[end-58][!, 2:end] |> JMatrix{Float64}; # 2019-12-31
+    iis_data = data_vintages[end-58][!, 2:end] |> JMatrix{Float64}; # release date: 2019-12-31
 else
-    iis_data = data_vintages[end][!, 2:end] |> JMatrix{Float64}; # 2020-12-31
+    iis_data = data_vintages[end][!, 2:end] |> JMatrix{Float64};    # release date: 2020-12-31
 end
 
 iis_data = permutedims(iis_data);
@@ -51,7 +52,7 @@ errors = read(macro_output["errors"]);
 optimal_hyperparams = candidates[:, argmin(errors)];
 
 # Estimate DFM
-model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices);
+model_args, model_kwargs, coordinates_params_rescaling = get_dfm_args(compute_ep_cycle, n_series, n_cycles, n_cons_prices, false);
 estim, std_diff_data = get_tc_structure(iis_data, optimal_hyperparams, model_args, model_kwargs, coordinates_params_rescaling);
 
 # Run Kalman routines
@@ -60,21 +61,33 @@ status = kfilter_full_sample(sspace);
 X_sm, P_sm, X0_sm, P0_sm = ksmoother(sspace, status);
 smoothed_states = hcat([X_sm[i] for i=1:length(X_sm)]...);
 
-# Indices
+# Recover tc structure from model_args
 trends_skeleton, cycles_skeleton, drifts_selection, trends_free_params, cycles_free_params = model_args;
-n_trends = length(drifts_selection);
-non_stationary_skeleton = vcat([ifelse(drifts_selection[i], [1.0; 0.0; 2.0; 0.0], [1.0; 0.0]) for i=1:n_trends]...);
-ind_trends = findall(non_stationary_skeleton .== 1);
-last_non_stationary = length(non_stationary_skeleton);
-ind_idio_cycles = collect(last_non_stationary+1:2:last_non_stationary+n_series*2);
-ind_bc_cycle = last_non_stationary+n_series*2+1;
-ind_ep_cycle = ind_bc_cycle+estim.lags+1;
 
-# States of interest
-smoothed_trends = std_diff_data .* (sspace.B[:, ind_trends]*smoothed_states[ind_trends, :]);
-smoothed_idio_cycles = std_diff_data .* smoothed_states[ind_idio_cycles, :];
-smoothed_bc_cycle = std_diff_data .* (sspace.B[:, ind_bc_cycle:ind_bc_cycle+estim.lags-1]*smoothed_states[ind_bc_cycle:ind_bc_cycle+estim.lags-1, :]);
-smoothed_ep_cycle = std_diff_data .* (sspace.B[:, ind_ep_cycle:end-1]*smoothed_states[ind_ep_cycle:end-1, :]);
+# Common cycles offset
+common_cycles_offset = (1+estim.lags)*(1+compute_ep_cycle);
+bc_coordinates = size(smoothed_states, 1)-common_cycles_offset+1 : size(smoothed_states, 1)-common_cycles_offset+12;
+ep_coordinates = bc_coordinates .+ estim.lags .+ 1;
+
+# Smoothed states
+smoothed_trends      = zeros(n_series, size(smoothed_states, 2));
+smoothed_idio_cycles = zeros(n_series, size(smoothed_states, 2));
+smoothed_bc_cycle    = zeros(n_series, size(smoothed_states, 2));
+smoothed_ep_cycle    = zeros(n_series, size(smoothed_states, 2));
+
+for i=1:n_series
+
+    # Trend and idiosyncratic cycle
+    ind_excluding_common_cycles = findall(sspace.B[i, 1:end-common_cycles_offset] .!= 0.0);
+    smoothed_trends[i, :]      = std_diff_data[i] .* smoothed_states[ind_excluding_common_cycles[1], :] .* sspace.B[i, ind_excluding_common_cycles[1]];
+    smoothed_idio_cycles[i, :] = std_diff_data[i] .* smoothed_states[ind_excluding_common_cycles[2], :] .* sspace.B[i, ind_excluding_common_cycles[2]];
+
+    # Common cycles
+    smoothed_bc_cycle[i, :] = std_diff_data[i] .* smoothed_states[bc_coordinates, :]' * sspace.B[i, bc_coordinates];
+    if compute_ep_cycle
+        smoothed_ep_cycle[i, :] = std_diff_data[i] .* smoothed_states[ep_coordinates, :]' * sspace.B[i, ep_coordinates];
+    end
+end
 
 # Custom rescaling
 iis_data ./= custom_rescaling;
