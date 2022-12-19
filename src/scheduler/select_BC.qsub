@@ -2,7 +2,7 @@
 #$ -wd $HOME/Documents/replication-pellegrino-2022-ensembles/src
 #$ -V
 #$ -j y
-#$ -o $HOME/Documents/replication-pellegrino-2022-ensembles/src/fabian/$JOB_NAME.$JOB_ID.output
+#$ -o $HOME/Documents/replication-pellegrino-2022-ensembles/src/scheduler/$JOB_NAME.$JOB_ID.output
 #$ -N select_BC
 #$ -M f.pellegrino1@lse.ac.uk
 #$ -m bea
