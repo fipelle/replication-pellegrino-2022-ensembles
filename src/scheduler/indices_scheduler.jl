@@ -1,7 +1,7 @@
 function get_qsub_content(equity_index_id::Int64, regression_model::Int64, compute_ep_cycle::Bool, include_factor_augmentation::Bool, include_factor_transformations::Bool)
     
     julia_log_folder_path = ifelse(compute_ep_cycle, "./BC_and_EP_output", "./BC_output");
-    qsub_log_output = "\$HOME/Documents/replication-pellegrino-2022-ensembles/src/fabian/logs/$(regression_model)/\$JOB_NAME.\$JOB_ID.output";
+    qsub_log_output = "\$HOME/Documents/replication-pellegrino-2022-ensembles/src/scheduler/logs/$(regression_model)/\$JOB_NAME.\$JOB_ID.output";
     qsub_name = "m$(equity_index_id)_$(regression_model)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(include_factor_transformations)";
     qsub_command = "julia finance_forecasts.jl $(equity_index_id) $(regression_model) $(compute_ep_cycle) $(include_factor_augmentation) $(include_factor_transformations) $(julia_log_folder_path)"
 
@@ -15,21 +15,22 @@ function get_qsub_content(equity_index_id::Int64, regression_model::Int64, compu
     #\$ -M f.pellegrino1@lse.ac.uk
     #\$ -m bea
     #\$ -l h_rt=144:0:0
-    #\$ -l h_vmem=64G
+    #\$ -l h_vmem=32G
     #\$ -l h='(vnode01|vnode02|vnode03|vnode06|vnode08|vnode13|vnode16)'
     #\$ -pe smp 1
 
+    module load apps/anaconda3/2022.05/bin
     module load apps/julia/1.6.2
     $(qsub_command)""";
-
+    
     return qsub_content;
 end
 
 # Loop over the equity indices
 for equity_index_id=11:20
     for regression_model=1:2
-        for compute_ep_cycle=[false; true]
-            for (include_factor_augmentation, include_factor_transformations) in [(false, false), (true, false), (true, true)]
+        for compute_ep_cycle=[false] #[false; true]
+            for (include_factor_augmentation, include_factor_transformations) in [(false, false), (true, true)] #[(false, false), (true, false), (true, true)]
 
                 # Get qsub content
                 qsub_content = get_qsub_content(equity_index_id, regression_model, compute_ep_cycle, include_factor_augmentation, include_factor_transformations);
