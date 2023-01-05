@@ -5,12 +5,11 @@ function get_sbatch_content(equity_index_id::Int64, regression_model::Int64, com
     sbatch_command = "julia finance_forecasts.jl $(equity_index_id) $(regression_model) $(compute_ep_cycle) $(include_factor_augmentation) $(include_factor_transformations) $(julia_log_folder_path)"
 
     sbatch_content = """
-    #!/bin/bash -login
     #!/bin/bash
 
-    #SBATCH --partition=xlarge
+    #SBATCH --partition=large
     #SBATCH --nodes=1
-    #SBATCH --cpus-per-task 1
+    #SBATCH --cpus-per-task 2
     #SBATCH --job-name=$(sbatch_name)
     #SBATCH --error=/users/pellegr5/replication-pellegrino-2022-ensembles/src/scheduler/logs/$(regression_model)/%x_%N_%j.err
     #SBATCH --output=/users/pellegr5/replication-pellegrino-2022-ensembles/src/scheduler/logs/$(regression_model)/%x_%N_%j.out
@@ -25,8 +24,8 @@ end
 # Loop over the equity indices
 for equity_index_id=11:20
     for regression_model=1:2
-        for compute_ep_cycle=[false; true]
-            for (include_factor_augmentation, include_factor_transformations) in [(false, false), (true, false), (true, true)]
+        for compute_ep_cycle=[false]#[false; true]
+            for (include_factor_augmentation, include_factor_transformations) in [(false, false), (true, true)]
 
                 # Get sbatch content
                 sbatch_content = get_sbatch_content(equity_index_id, regression_model, compute_ep_cycle, include_factor_augmentation, include_factor_transformations);
@@ -45,7 +44,7 @@ for equity_index_id=11:20
                 run(`sbatch index.sbatch`);
 
                 # Wait before starting the next iteration
-                sleep(2.5);
+                sleep(5);
             end
         end
     end
