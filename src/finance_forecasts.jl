@@ -107,7 +107,7 @@ first_data_vintage = data_vintages[1]; # default: data up to 2005-01-31
 estimation_sample_length = fld(size(first_data_vintage, 1), 2);
 
 # Get training and validation samples
-_, _, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+_, _, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_macro_data_partitions(first_data_vintage[1:end-1, :], equity_index[1:size(first_data_vintage, 1)], estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
 
 # Predictors dimensions in estimation sample
 n_predictors, estimation_sample_adj_length = size(estimation_samples_predictors);
@@ -170,7 +170,7 @@ This operation produces forecasts referring to every month from 2005-02-28 to 20
 =#
 
 # Estimate on full selection sample
-sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], size(first_data_vintage, 1), optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(first_data_vintage[1:end-1, :], equity_index[1:size(first_data_vintage, 1)], size(first_data_vintage, 1) - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
 optimal_rf_instance = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, optimal_rf_settings);
 
 # The equity index value for 2005-01-31 is used in the estimation. This offset allows to start the next calculations from the next reference point and to be a truly out-of-sample exercise
