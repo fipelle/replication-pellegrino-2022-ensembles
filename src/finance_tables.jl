@@ -1,7 +1,6 @@
 # Libraries
 using CSV, DataFrames, Dates, FileIO, JLD, Logging;
-using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, ScikitLearn, Statistics;
-@sk_import ensemble: RandomForestRegressor;
+using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, DecisionTree, Statistics;
 include("./macro_functions.jl");
 include("./finance_functions.jl");
 

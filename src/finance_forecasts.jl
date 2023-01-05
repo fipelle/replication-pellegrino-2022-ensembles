@@ -1,7 +1,6 @@
 # Libraries
 using CSV, DataFrames, Dates, FileIO, JLD, Logging;
-using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, ScikitLearn, Statistics;
-@sk_import ensemble: RandomForestRegressor;
+using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, DecisionTree, StableRNGs, Statistics;
 include("./macro_functions.jl");
 include("./finance_functions.jl");
 
@@ -28,7 +27,7 @@ include_factor_transformations = parse(Bool, ARGS[5]);
 log_folder_path = ARGS[6];
 
 # Fixed number of trees per ensemble
-n_estimators = 500;
+n_trees = 1000;
 
 #=
 Setup logger
@@ -48,7 +47,7 @@ First log entries
 @info("include_factor_augmentation: $(include_factor_augmentation)");
 @info("include_factor_transformations: $(include_factor_transformations)");
 @info("log_folder_path: $(log_folder_path)");
-@info("n_estimators: $(n_estimators)");
+@info("n_trees: $(n_trees)");
 flush(io);
 
 #=
@@ -98,6 +97,9 @@ The selection sample is the first vintage in `data_vintages`.
 @info("Partition data into training and validation samples");
 flush(io);
 
+# Set seed
+rng = StableRNG(1);
+
 # First data vintage
 first_data_vintage = data_vintages[1]; # default: data up to 2005-01-31
 
@@ -108,31 +110,38 @@ validation_sample_length = size(first_data_vintage, 1) - estimation_sample_lengt
 # Get training and validation samples
 _, _, estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
 
+# Predictors dimensions in estimation sample
+n_predictors, estimation_sample_adj_length = size(estimation_samples_predictors);
+
+@info("n_predictors: $(n_predictors)");
+@info("estimation_sample_adj_length: $(estimation_sample_adj_length)");
 @info("------------------------------------------------------------")
 @info("Construct hyperparameters grid");
 flush(io);
 
 # Compute validation error
-grid_max_samples      = [1.0];                                                  # the number of samples to draw from X to train each base estimator
-grid_min_samples_leaf = collect(range(5, stop=50, length=10)) |> Vector{Int64}; # the minimum number of samples required to be at a leaf node
+grid_partial_sampling = [1.0];                                                                      # the number of samples to draw from X to train each base estimator
+grid_min_samples_leaf = collect(range(0.01, stop=0.50, length=25) .* estimation_sample_adj_length); # the minimum number of samples required to be at a leaf node
+grid_min_samples_leaf = unique(ceil.(grid_min_samples_leaf)) |> Vector{Int64};                      # round to nearest integers
 
 # Bagging
 if regression_model == 1
-    grid_max_features = [1.0];                                                  # the default of 1.0 is equivalent to bagged trees and more randomness can be achieved by setting smaller values
+    grid_n_subfeatures = [n_predictors];                                                             # the default of `n_predictors` is equivalent to bagged trees
 
 # Random forest
 elseif regression_model == 2
-    grid_max_features = collect(range(0.5, stop=1.0, length=5));                # the default of 1.0 is equivalent to bagged trees and more randomness can be achieved by setting smaller values
+    grid_n_subfeatures = collect(range(0.05, stop=0.95, length=25) .* n_predictors);                 # more randomness can be achieved by setting smaller values than `n_predictors`
+    grid_n_subfeatures = unique(ceil.(grid_n_subfeatures)) |> Vector{Int64};                          # round to nearest integers
 
 else
     error("Unsupported `regression_model!`")
 end
 
 grid_hyperparameters = Vector{NamedTuple}();
-for max_samples in grid_max_samples
-    for max_features in grid_max_features
+for partial_sampling in grid_partial_sampling
+    for n_subfeatures in grid_n_subfeatures
         for min_samples_leaf in grid_min_samples_leaf
-            push!(grid_hyperparameters, (random_state=1, n_estimators=n_estimators, max_samples=max_samples, max_features=max_features, min_samples_leaf=min_samples_leaf));
+            push!(grid_hyperparameters, (rng=rng, n_trees=n_trees, partial_sampling=partial_sampling, n_subfeatures=n_subfeatures, min_samples_leaf=min_samples_leaf));
         end
     end
 end
@@ -146,12 +155,12 @@ validation_errors = zeros(length(grid_hyperparameters));
 
 # Compute the validation mean squared error looping over each candidate hyperparameter
 for (i, model_settings) in enumerate(grid_hyperparameters)
-    _, _, validation_errors[i] = estimate_and_validate_skl_model(estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors, RandomForestRegressor, model_settings);
+    _, _, validation_errors[i] = estimate_and_validate_dt_model(estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors, RandomForestRegressor, model_settings);
 end
 
 # Optimal hyperparameter
 optimal_rf_settings = grid_hyperparameters[argmin(validation_errors)];
-@info("Optimal min_samples_leaf=$(optimal_rf_settings)");
+@info("Optimal hyperparameters: $(optimal_rf_settings)");
 flush(io);
 
 #=
@@ -163,7 +172,7 @@ This operation produces forecasts referring to every month from 2005-02-28 to 20
 
 # Estimate on full selection sample
 sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(first_data_vintage, equity_index[1:size(first_data_vintage, 1) + 1], estimation_sample_length+validation_sample_length, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
-optimal_rf_instance = estimate_skl_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, optimal_rf_settings);
+optimal_rf_instance = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, optimal_rf_settings);
 
 # The equity index value for 2005-01-31 is used in the estimation. This offset allows to start the next calculations from the next reference point and to be a truly out-of-sample exercise
 offset_vintages = 4;
@@ -185,7 +194,7 @@ for v in axes(forecast_array, 1)
     _, _, _, _, current_target, current_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length-1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling, sspace, std_diff_data);
 
     # Store new forecast
-    forecast_array[v] = ScikitLearn.predict(optimal_rf_instance, permutedims(current_predictors))[end]; # the function returns a 1-dimensional vector
+    forecast_array[v] = DecisionTree.predict(optimal_rf_instance, permutedims(current_predictors))[end]; # the function returns a 1-dimensional vector
 
     # Store current outturn
     outturn_array[v] = current_target[end]; # current_target is a 1-dimensional vector
