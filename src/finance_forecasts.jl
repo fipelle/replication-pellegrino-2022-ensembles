@@ -173,12 +173,9 @@ This operation produces forecasts referring to every month from 2005-02-28 to 20
 sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(first_data_vintage[1:end-1, :], equity_index[1:size(first_data_vintage, 1)], size(first_data_vintage, 1) - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
 optimal_rf_instance = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, optimal_rf_settings);
 
-# The equity index value for 2005-01-31 is used in the estimation. This offset allows to start the next calculations from the next reference point and to be a truly out-of-sample exercise
-offset_vintages = 4;
-
 # Memory pre-allocation for output
-outturn_array = zeros(length(data_vintages)-offset_vintages);
-forecast_array = zeros(length(data_vintages)-offset_vintages);
+outturn_array = zeros(length(data_vintages));
+forecast_array = zeros(length(data_vintages));
 
 @info("------------------------------------------------------------")
 for v in axes(forecast_array, 1)
@@ -186,7 +183,7 @@ for v in axes(forecast_array, 1)
     flush(io);
 
     # Select current vintage
-    current_data_vintage = data_vintages[v+offset_vintages];
+    current_data_vintage = data_vintages[v];
     current_data_vintage_length = size(current_data_vintage, 1);
 
     # Compute predictor matrix and get outturn for the target
@@ -207,15 +204,11 @@ Store output in JLD
 @info("Saving output to JLD");
 flush(io);
 
-# Release dates post `offset_vintages`
-release_dates_oos = release_dates[1+offset_vintages:end];
-
-# Reference periods post `offset_vintages` for the target (i.e., equity index)
+# Reference periods for the target (i.e., equity index)
 equity_index_ref = [Dates.lastdayofmonth(Dates.firstdayofmonth(data_vintages[v][end,1])+Month(1)) for v in axes(data_vintages, 1)];
-equity_index_ref_oos = equity_index_ref[1+offset_vintages:end];
 
 # Distance from reference period
-distance_from_reference_month = Dates.value.(equity_index_ref_oos-release_dates_oos);
+distance_from_reference_month = Dates.value.(equity_index_ref-release_dates);
 
 # Store output
 save("$(log_folder_path)/$(regression_model)/output_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(include_factor_transformations).jld", 
@@ -232,8 +225,8 @@ save("$(log_folder_path)/$(regression_model)/output_equity_index_$(equity_index_
          "optimal_rf_instance" => optimal_rf_instance, 
          "outturn_array" => outturn_array, 
          "forecast_array" => forecast_array, 
-         "release_dates_oos" => release_dates_oos,
-         "equity_index_ref_oos" => equity_index_ref_oos,
+         "release_dates" => release_dates,
+         "equity_index_ref" => equity_index_ref,
          "distance_from_reference_month" => distance_from_reference_month));
 
 @info("------------------------------------------------------------")
