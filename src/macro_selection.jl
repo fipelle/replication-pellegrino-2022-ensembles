@@ -75,7 +75,7 @@ gamma_bounds = ([12, 12], [0.01, 2.50], [0.0, 1.0], [1.0, 1.2]);
 grid_prerun = HyperGrid(gamma_bounds..., 1);
 grid = HyperGrid(gamma_bounds..., 1000);
 weights = zeros(n_series);
-weights[findfirst(tickers .== "RPCE")] = 1.0;
+weights[findfirst(tickers .== "CPIAUCNS")] = 1.0;
 
 # Validation inputs: common for all oos err_types
 t0 = 126;
