@@ -9,4 +9,4 @@
 #SBATCH --chdir=/users/pellegr5/replication-pellegrino-2022-ensembles/src
 
 module add apps/julia/1.6.7
-julia -p64 macro_selection.jl false 4 "./BC_output"
+julia -p48 macro_selection.jl false 4 "./BC_output"
