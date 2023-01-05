@@ -210,34 +210,34 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
 end
 
 """
-    estimate_skl_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+    estimate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
 
 Estimate `model` given the settings in `model_settings`.
 """
-function estimate_skl_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+function estimate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
     
     # Generate `model` instance
     model_instance = model(; model_settings...);
     
     # Estimation
-    ScikitLearn.fit!(model_instance, permutedims(estimation_samples_predictors), estimation_samples_target); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+    DecisionTree.fit!(model_instance, permutedims(estimation_samples_predictors), estimation_samples_target); # in DecisionTree all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
     
     # Return model instance
     return model_instance;
 end
 
 """
-    estimate_and_validate_skl_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+    estimate_and_validate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
 
 Estimate and validate `model` given the settings in `model_settings`.
 """
-function estimate_and_validate_skl_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+function estimate_and_validate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
 
     # Generate model instance
-    model_instance = estimate_skl_model(estimation_samples_target, estimation_samples_predictors, model, model_settings);
+    model_instance = estimate_dt_model(estimation_samples_target, estimation_samples_predictors, model, model_settings);
 
     # Validation sample forecasts
-    validation_forecasts = ScikitLearn.predict(model_instance, permutedims(validation_samples_predictors)); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+    validation_forecasts = DecisionTree.predict(model_instance, permutedims(validation_samples_predictors)); # in DecisionTree all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
 
     # Compute validation error
     validation_error = mean((validation_samples_target .- validation_forecasts).^2);
