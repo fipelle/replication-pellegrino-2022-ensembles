@@ -169,11 +169,10 @@ The out-of-sample exercise stores the one-step ahead squared error for the targe
 This operation produces forecasts referring to every month from 2005-02-28 to 2021-01-31.
 =#
 
-# Estimate on full selection sample
-sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(first_data_vintage[1:end-1, :], equity_index[1:size(first_data_vintage, 1)], size(first_data_vintage, 1) - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
-optimal_rf_instance = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, optimal_rf_settings);
-
 # Memory pre-allocation for output
+sspace = [];
+std_diff_data = [];
+optimal_rf_instance = [];
 outturn_array = zeros(length(data_vintages));
 forecast_array = zeros(length(data_vintages));
 
@@ -186,7 +185,17 @@ for v in axes(forecast_array, 1)
     current_data_vintage = data_vintages[v];
     current_data_vintage_length = size(current_data_vintage, 1);
 
-    # Compute predictor matrix and get outturn for the target
+    # Re-estimate every year
+    if year(current_data_vintage[end, :reference_dates]) != year(current_data_vintage[end-1, :reference_dates])
+        sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(first_data_vintage[1:end-1, :], equity_index[1:size(first_data_vintage, 1)], size(first_data_vintage, 1) - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+        optimal_rf_instance = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, optimal_rf_settings);        
+    end
+
+    #=
+    Compute predictor matrix and get outturn for the target
+    Note that the following function is using an estimated `sspace` and `std_diff_data` setting `t0=current_data_vintage_length-1` does not have an impact on the conditioning set -> it is a convenient trick to obtain the right arrays to forecast in oos
+    =#
+    
     _, _, _, _, current_target, current_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length-1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling, sspace, std_diff_data);
 
     # Store new forecast
