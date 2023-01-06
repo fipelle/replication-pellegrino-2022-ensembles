@@ -187,7 +187,7 @@ for v in axes(forecast_array, 1)
 
     # Re-estimate every year
     if year(current_data_vintage[end, :reference_dates]) != year(current_data_vintage[end-1, :reference_dates])
-        sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(first_data_vintage[1:end-1, :], equity_index[1:size(first_data_vintage, 1)], size(first_data_vintage, 1) - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+        sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(current_data_vintage[1:end-1, :], equity_index[1:size(current_data_vintage, 1)], current_data_vintage_length - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
         optimal_rf_instance = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, optimal_rf_settings);        
     end
 
