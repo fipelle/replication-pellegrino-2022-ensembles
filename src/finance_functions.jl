@@ -192,6 +192,13 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
     # The first column in `predictors_matrix` includes data on the `equity_index` from 1 to lags thus `target_vector` starts from lags+1
     target_vector = equity_index[lags+1:end]; # it has the same size than `predictors_matrix` since `equity_index` has an extra entry at the end
     
+    #=
+    Note that:
+    1. when computing `sspace` the code conditions on `macro_data[:, 1:t0]`
+    2. the factors computed conditioning on `macro_data[:, 1:t0]` are stored in the `t0-lags+1`-th column in `predictors_matrix`
+    3. the autoregressive data is aligned with the factors
+    =#
+
     # Estimation is up to t==t0
     estimation_samples_target = target_vector[1:t0-lags+1];
     estimation_samples_predictors = predictors_matrix[:, 1:t0-lags+1];
