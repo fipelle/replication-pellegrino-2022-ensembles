@@ -175,10 +175,14 @@ The out-of-sample exercise stores the one-step ahead squared error for the targe
 This operation produces forecasts referring to every month from 2005-02-28 to 2021-01-31.
 =#
 
-# Memory pre-allocation for output
-sspace = [];
-std_diff_data = [];
-optimal_rf_instance = [];
+#=
+Memory pre-allocation for output
+Note that I am using Vectors{...} for the first three variables to avoid scope errors
+=#
+
+sspace = Vector{KalmanSettings}(undef, 1);
+std_diff_data = Vector{FloatMatrix}(undef, 1);
+optimal_rf_instance = Vector{RandomForestRegressor}(undef, 1);
 outturn_array = zeros(length(data_vintages));
 forecast_array = zeros(length(data_vintages));
 
@@ -198,8 +202,8 @@ for v in axes(forecast_array, 1)
         current_optimal_rf_settings[:min_samples_leaf] = ceil(optimal_rf_settings[:min_samples_leaf]*(current_data_vintage_length-1)) |> Int64; # current_data_vintage_length-1 is fine
         
         # Re-estimate random forest
-        sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(current_data_vintage[1:end-1, :], equity_index[1:size(current_data_vintage, 1)], current_data_vintage_length - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
-        optimal_rf_instance = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, current_optimal_rf_settings);        
+        sspace[1], std_diff_data[1], selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(current_data_vintage[1:end-1, :], equity_index[1:size(current_data_vintage, 1)], current_data_vintage_length - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+        optimal_rf_instance[1] = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, current_optimal_rf_settings);        
     end
 
     #=
@@ -207,17 +211,17 @@ for v in axes(forecast_array, 1)
     Note that the following function is using an estimated `sspace` and `std_diff_data` setting `t0=current_data_vintage_length-1` does not have an impact on the conditioning set -> it is a convenient trick to obtain the right arrays to forecast in oos
     =#
     
-    _, _, _, _, current_target, current_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length-1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling, sspace, std_diff_data);
+    _, _, _, _, current_target, current_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length-1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling, sspace[1], std_diff_data[1]);
 
     # Store new forecast
-    forecast_array[v] = DecisionTree.predict(optimal_rf_instance, permutedims(current_predictors))[end]; # the function returns a 1-dimensional vector
+    forecast_array[v] = DecisionTree.predict(optimal_rf_instance[1], permutedims(current_predictors))[end]; # the function returns a 1-dimensional vector
 
     # Store current outturn
     outturn_array[v] = current_target[end]; # current_target is a 1-dimensional vector
 end
 
 @info("------------------------------------------------------------")
-@info("optimal_rf_instance: $(optimal_rf_instance)");
+@info("optimal_rf_instance: $(optimal_rf_instance[1])");
 
 #=
 Store output in JLD
@@ -240,12 +244,12 @@ save("$(log_folder_path)/$(regression_model)/output_equity_index_$(equity_index_
          "compute_ep_cycle" => compute_ep_cycle,
          "include_factor_augmentation" => include_factor_augmentation,
          "include_factor_transformations" => include_factor_transformations,
-         "sspace" => sspace,
-         "std_diff_data" => std_diff_data,
+         "sspace" => sspace[1],
+         "std_diff_data" => std_diff_data[1],
          "grid_hyperparameters" => grid_hyperparameters, 
          "validation_errors" => validation_errors, 
          "optimal_rf_settings" => optimal_rf_settings, 
-         "optimal_rf_instance" => optimal_rf_instance, 
+         "optimal_rf_instance" => optimal_rf_instance[1], 
          "outturn_array" => outturn_array, 
          "forecast_array" => forecast_array, 
          "release_dates" => release_dates,
