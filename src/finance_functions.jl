@@ -217,11 +217,11 @@ function get_macro_data_partitions(macro_vintage::AbstractDataFrame, equity_inde
 end
 
 """
-    estimate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+    estimate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::Dict)
 
 Estimate `model` given the settings in `model_settings`.
 """
-function estimate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+function estimate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::Dict)
     
     # Generate `model` instance
     model_instance = model(; model_settings...);
@@ -234,11 +234,11 @@ function estimate_dt_model(estimation_samples_target::FloatVector, estimation_sa
 end
 
 """
-    estimate_and_validate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+    estimate_and_validate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::Dict)
 
 Estimate and validate `model` given the settings in `model_settings`.
 """
-function estimate_and_validate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::NamedTuple)
+function estimate_and_validate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, validation_samples_target::FloatVector, validation_samples_predictors::FloatMatrix, model::Any, model_settings::Dict)
 
     # Generate model instance
     model_instance = estimate_dt_model(estimation_samples_target, estimation_samples_predictors, model, model_settings);

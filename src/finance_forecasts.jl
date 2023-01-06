@@ -119,28 +119,29 @@ n_predictors, estimation_sample_adj_length = size(estimation_samples_predictors)
 flush(io);
 
 # Compute validation error
-grid_partial_sampling = [1.0];                                                                      # the number of samples to draw from X to train each base estimator
-grid_min_samples_leaf = collect(range(0.01, stop=0.50, length=25) .* estimation_sample_adj_length); # the minimum number of samples required to be at a leaf node
-grid_min_samples_leaf = unique(ceil.(grid_min_samples_leaf)) |> Vector{Int64};                      # round to nearest integers
+grid_partial_sampling  = [1.0];                                                           # the number of samples to draw from X to train each base estimator
+range_min_samples_leaf = range(0.01, stop=0.50, length=25);
+grid_min_samples_leaf  = collect(range_min_samples_leaf .* estimation_sample_adj_length); # the minimum number of samples required to be at a leaf node
+grid_min_samples_leaf  = unique(ceil.(grid_min_samples_leaf)) |> Vector{Int64};           # round to nearest integers
 
 # Bagging
 if regression_model == 1
-    grid_n_subfeatures = [n_predictors];                                                             # the default of `n_predictors` is equivalent to bagged trees
+    grid_n_subfeatures = [n_predictors];                                                  # the default of `n_predictors` is equivalent to bagged trees
 
 # Random forest
 elseif regression_model == 2
-    grid_n_subfeatures = collect(range(0.05, stop=0.95, length=25) .* n_predictors);                 # more randomness can be achieved by setting smaller values than `n_predictors`
-    grid_n_subfeatures = unique(ceil.(grid_n_subfeatures)) |> Vector{Int64};                          # round to nearest integers
+    grid_n_subfeatures = collect(range(0.05, stop=0.95, length=25) .* n_predictors);      # more randomness can be achieved by setting smaller values than `n_predictors`
+    grid_n_subfeatures = unique(ceil.(grid_n_subfeatures)) |> Vector{Int64};              # round to nearest integers
 
 else
     error("Unsupported `regression_model!`")
 end
 
-grid_hyperparameters = Vector{NamedTuple}();
+grid_hyperparameters = Vector{Dict}();
 for partial_sampling in grid_partial_sampling
     for n_subfeatures in grid_n_subfeatures
         for min_samples_leaf in grid_min_samples_leaf
-            push!(grid_hyperparameters, (rng=rng, n_trees=n_trees, partial_sampling=partial_sampling, n_subfeatures=n_subfeatures, min_samples_leaf=min_samples_leaf));
+            push!(grid_hyperparameters, Dict(:rng => rng, :n_trees => n_trees, :partial_sampling => partial_sampling, :n_subfeatures => n_subfeatures, :min_samples_leaf => min_samples_leaf));
         end
     end
 end
@@ -159,6 +160,11 @@ end
 
 # Optimal hyperparameter
 optimal_rf_settings = grid_hyperparameters[argmin(validation_errors)];
+
+# Convert optimal `min_samples_leaf` in percentage terms
+optimal_rf_settings[:min_samples_leaf] = range_min_samples_leaf[findfirst(grid_min_samples_leaf .== optimal_rf_settings[:min_samples_leaf])];
+
+# Update logs
 @info("Optimal hyperparameters: $(optimal_rf_settings)");
 flush(io);
 
@@ -185,10 +191,15 @@ for v in axes(forecast_array, 1)
     current_data_vintage = data_vintages[v];
     current_data_vintage_length = size(current_data_vintage, 1);
 
-    # Re-estimate every year
-    if year(current_data_vintage[end, :reference_dates]) != year(current_data_vintage[end-1, :reference_dates])
+    if v==1#year(current_data_vintage[end, :reference_dates]) != year(current_data_vintage[end-1, :reference_dates])
+
+        # Recover hyperparameters
+        current_optimal_rf_settings = copy(optimal_rf_settings);
+        current_optimal_rf_settings[:min_samples_leaf] = ceil(optimal_rf_settings[:min_samples_leaf]*(current_data_vintage_length-1)); # current_data_vintage_length-1 is fine
+        
+        # Re-estimate random forest
         sspace, std_diff_data, selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(current_data_vintage[1:end-1, :], equity_index[1:size(current_data_vintage, 1)], current_data_vintage_length - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
-        optimal_rf_instance = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, optimal_rf_settings);        
+        optimal_rf_instance = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, current_optimal_rf_settings);        
     end
 
     #=
