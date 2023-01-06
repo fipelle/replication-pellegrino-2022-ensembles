@@ -180,8 +180,8 @@ Memory pre-allocation for output
 Note that I am using Vectors{...} for the first three variables to avoid scope errors
 =#
 
-sspace = Vector{KalmanSettings}(undef, 1);
-std_diff_data = Vector{FloatMatrix}(undef, 1);
+sspace = Vector{Union{Nothing, KalmanSettings}}(undef, 1);
+std_diff_data = Vector{Union{Nothing, FloatMatrix}}(undef, 1);
 optimal_rf_instance = Vector{RandomForestRegressor}(undef, 1);
 outturn_array = zeros(length(data_vintages));
 forecast_array = zeros(length(data_vintages));
