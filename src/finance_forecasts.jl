@@ -216,6 +216,9 @@ for v in axes(forecast_array, 1)
     outturn_array[v] = current_target[end]; # current_target is a 1-dimensional vector
 end
 
+@info("------------------------------------------------------------")
+@info("optimal_rf_instance: $(optimal_rf_instance)");
+
 #=
 Store output in JLD
 =#
