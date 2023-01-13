@@ -71,6 +71,17 @@ labels = vcat(
     ["\$ \\hat{\\psi}_{1,t+$i | t} - \\hat{\\psi}_{1,t | t} \$" for i=2:11],
 )
 
+fred_tickers = ["WILL5000IND",        # Wilshire 5000 Total Market Index
+                "WILLLRGCAP",         # Wilshire US Large-Cap Total Market Index
+                "WILLLRGCAPVAL",      # Wilshire US Large-Cap Value Total Market Index
+                "WILLLRGCAPGR",       # Wilshire US Large-Cap Growth Total Market Index
+                "WILLMIDCAP",         # Wilshire US Mid-Cap Total Market Index
+                "WILLMIDCAPVAL",      # Wilshire US Mid-Cap Value Total Market Index
+                "WILLMIDCAPGR",       # Wilshire US Mid-Cap Growth Total Market Index
+                "WILLSMLCAP",         # Wilshire US Small-Cap Total Market Index
+                "WILLSMLCAPVAL",      # Wilshire US Small-Cap Value Total Market Index
+                "WILLSMLCAPGR"];      # Wilshire US Small-Cap Growth Total Market Index
+
 # Colors
 using Colors;
 c1 = colorant"rgba(0, 48, 158, .75)";
@@ -105,6 +116,7 @@ for i in axes(axs, 1)
             xmin=0, xmax=1.0,
             legend_style=legend_style_content,
             "enlarge y limits = 0.75",
+            title=fred_tickers[i],
         },
 
         Plot({color=c2, fill=c2}, Coordinates([get_importance_label(data_post_covid, i) for i=1:best_kth])),
@@ -114,7 +126,7 @@ for i in axes(axs, 1)
 end
 
 fig = @pgf TikzPicture(GroupPlot(
-    { group_style = {group_size="2 by 5", vertical_sep="60pt", horizontal_sep="120pt", vertical_sep="50pt"},
+    { group_style = {group_size="2 by 5", vertical_sep="60pt", horizontal_sep="120pt", vertical_sep="65pt"},
       no_markers,
       legend_pos="north west",
       height="150pt",
@@ -149,6 +161,7 @@ for i in axes(axs, 1)
             symbolic_y_coords=most_important_labels,
             ytick = "data",
             xmin=0, xmax=0.7,
+            title=fred_tickers[i],
         },
 
         Plot({color=c1, fill=c1}, Coordinates([get_importance_label(data_pre_covid, i) for i=1:best_kth])),
@@ -156,7 +169,7 @@ for i in axes(axs, 1)
 end
 
 fig = @pgf TikzPicture(GroupPlot(
-    { group_style = {group_size="2 by 5", vertical_sep="60pt", horizontal_sep="120pt", vertical_sep="50pt"},
+    { group_style = {group_size="2 by 5", vertical_sep="60pt", horizontal_sep="120pt", vertical_sep="65pt"},
       no_markers,
       legend_pos="north west",
       height="200pt",
@@ -190,6 +203,7 @@ for i in axes(axs, 1)
             symbolic_y_coords=most_important_labels,
             ytick = "data",
             xmin=0, xmax=0.7,
+            title=fred_tickers[i],
         },
 
         Plot({color=c2, fill=c2}, Coordinates([get_importance_label(data_post_covid, i) for i=1:best_kth])),
@@ -197,7 +211,7 @@ for i in axes(axs, 1)
 end
 
 fig = @pgf TikzPicture(GroupPlot(
-    { group_style = {group_size="2 by 5", vertical_sep="60pt", horizontal_sep="120pt", vertical_sep="50pt"},
+    { group_style = {group_size="2 by 5", vertical_sep="60pt", horizontal_sep="120pt", vertical_sep="65pt"},
       no_markers,
       legend_pos="north west",
       height="200pt",
