@@ -39,9 +39,9 @@ data_vintages = read(macro_output["data_vintages"]);
 n_series = size(data_vintages[end],2) - 1; # series - ref dates
 
 if pre_covid
-    iis_data = data_vintages[end-58][!, 2:end] |> JMatrix{Float64}; # release date: 2019-12-31
+    iis_data = data_vintages[812][!, 2:end] |> JMatrix{Float64}; # release date: 2020-02-28
 else
-    iis_data = data_vintages[end][!, 2:end] |> JMatrix{Float64};    # release date: 2020-12-31
+    iis_data = data_vintages[end][!, 2:end] |> JMatrix{Float64}; # release date: 2020-12-31
 end
 
 iis_data = permutedims(iis_data);
@@ -101,7 +101,7 @@ Plotting stage
 =#
 
 if pre_covid
-    ref_dates_fig = data_vintages[end-58][!,1];
+    ref_dates_fig = data_vintages[812][!,1];
 else
     ref_dates_fig = data_vintages[end][!,1];
 end
