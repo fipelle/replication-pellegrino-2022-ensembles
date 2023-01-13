@@ -6,7 +6,7 @@ include("./yrl/replication-pellegrino-2022-ensembles/src/macro_functions.jl");
 include("./yrl/replication-pellegrino-2022-ensembles/src/finance_functions.jl");
 
 """
-    get_label_importance(jld_path::String)
+    get_label_importance(jld_path::String, labels::Vector{String}; aggregate::Bool=true)
 
 Retrieve data from jld file and process it to be compatible with PGFPlotsX.
 """
@@ -32,11 +32,11 @@ function get_label_importance(jld_path::String, labels::Vector{String}; aggregat
 end
 
 """
-    get_label_importance(data::DataFrame, i::Int64)
+    get_importance_label(data::DataFrame, i::Int64)
 
 Convert i-th row of `data` into tuple.
 """
-get_label_importance(data::DataFrame, i::Int64) = (data[i, :importance], data[i, :label]);
+get_importance_label(data::DataFrame, i::Int64) = (data[i, :importance], data[i, :label]);
 
 # PGFPlotsX options
 push!(PGFPlotsX.CUSTOM_PREAMBLE, 
@@ -103,8 +103,8 @@ for i in axes(axs, 1)
             "enlarge y limits = 0.75",
         },
 
-        Plot({color=c1, fill=c1}, Coordinates([get_label_importance(data_pre_covid, i) for i=1:best_kth])),
-        Plot({color=c2, fill=c2}, Coordinates([ifelse(data_post_covid[i, :label] in most_important_labels, get_label_importance(data_post_covid, i), ()) for i in axes(data_post_covid, 1)])),
+        Plot({color=c1, fill=c1}, Coordinates([get_importance_label(data_pre_covid, i) for i=1:best_kth])),
+        Plot({color=c2, fill=c2}, Coordinates([ifelse(data_post_covid[i, :label] in most_important_labels, get_importance_label(data_post_covid, i), ()) for i in axes(data_post_covid, 1)])),
         ifelse(i==1, raw"\legend{Pre COVID-19, Post COVID-19}", "");
     );
 end
@@ -147,7 +147,7 @@ for i in axes(axs, 1)
             xmin=0, xmax=0.6,
         },
 
-        Plot({color=c1, fill=c1}, Coordinates([get_label_importance(data_pre_covid, i) for i=1:best_kth])),
+        Plot({color=c1, fill=c1}, Coordinates([get_importance_label(data_pre_covid, i) for i=1:best_kth])),
     );
 end
 
@@ -188,7 +188,7 @@ for i in axes(axs, 1)
             xmin=0, xmax=0.6,
         },
 
-        Plot({color=c1, fill=c1}, Coordinates([get_label_importance(data_post_covid, i) for i=1:best_kth])),
+        Plot({color=c1, fill=c1}, Coordinates([get_importance_label(data_post_covid, i) for i=1:best_kth])),
     );
 end
 
