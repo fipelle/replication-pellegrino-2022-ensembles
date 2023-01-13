@@ -195,7 +195,7 @@ for v in axes(forecast_array, 1)
     current_data_vintage = data_vintages[v];
     current_data_vintage_length = size(current_data_vintage, 1);
 
-    if v==1#year(current_data_vintage[end, :reference_dates]) != year(current_data_vintage[end-1, :reference_dates])
+    if month(current_data_vintage[end, :reference_dates]) != month(current_data_vintage[end-1, :reference_dates])
 
         # Recover hyperparameters
         current_optimal_rf_settings = copy(optimal_rf_settings);
