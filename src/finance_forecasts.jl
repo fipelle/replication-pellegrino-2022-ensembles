@@ -195,16 +195,22 @@ for v in axes(forecast_array, 1)
     current_data_vintage = data_vintages[v];
     current_data_vintage_length = size(current_data_vintage, 1);
 
-    if month(current_data_vintage[end, :reference_dates]) != month(current_data_vintage[end-1, :reference_dates])
+    #=
+    Use the following loop to re-estimate monthly rather than at every vintage
 
-        # Recover hyperparameters
-        current_optimal_rf_settings = copy(optimal_rf_settings);
-        current_optimal_rf_settings[:min_samples_leaf] = ceil(optimal_rf_settings[:min_samples_leaf]*(current_data_vintage_length-1)) |> Int64; # current_data_vintage_length-1 is fine
-        
-        # Re-estimate random forest
-        sspace[1], std_diff_data[1], selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(current_data_vintage[1:end-1, :], equity_index[1:size(current_data_vintage, 1)], current_data_vintage_length - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
-        optimal_rf_instance[1] = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, current_optimal_rf_settings);        
+    previous_data_vintage = data_vintages[v-1];
+    if month(current_data_vintage[end, :reference_dates]) != month(previous_data_vintage[end, :reference_dates])
+        -> Recover hyperparameters and re-estimate
     end
+    =#
+    
+    # Recover hyperparameters
+    current_optimal_rf_settings = copy(optimal_rf_settings);
+    current_optimal_rf_settings[:min_samples_leaf] = ceil(optimal_rf_settings[:min_samples_leaf]*(current_data_vintage_length-1)) |> Int64; # current_data_vintage_length-1 is fine
+    
+    # Re-estimate random forest
+    sspace[1], std_diff_data[1], selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(current_data_vintage[1:end-1, :], equity_index[1:size(current_data_vintage, 1)], current_data_vintage_length - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
+    optimal_rf_instance[1] = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, current_optimal_rf_settings);        
 
     #=
     Compute predictor matrix and get outturn for the target
