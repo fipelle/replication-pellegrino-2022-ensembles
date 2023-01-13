@@ -28,6 +28,7 @@ function get_label_importance(jld_path::String, labels::Vector{String}; aggregat
     # Data
     if !aggregate
         data = DataFrame([labels optimal_rf_importance], [:label, :importance]);
+        @infiltrate
         sort!(data, [:importance], rev=true);
     else
         aggregate_labels = ["Autoregressive", "Augmentation"];
@@ -93,11 +94,10 @@ for i in axes(axs, 1)
     data_post_covid = get_label_importance("$(post_covid_src_path)/BC_output/1/output_equity_index_$(10+i)_false_true_true.jld", labels, aggregate=true);
     
     # Legend
-    legend_style_content = ifelse(i==1, raw"{column sep = 10pt, legend columns = -1, legend to name = grouplegend, draw=none,}", "");
+    legend_style_content = ifelse(i==1, raw"{column sep = 10pt, legend columns = -1, legend to name = grouplegend, draw=none, reverse legend,}", "");
 
     # Most important predictors (pre covid) 
     most_important_labels = data_pre_covid[best_kth:-1:1, :label];
-    @infiltrate
 
     axs[i] = @pgf Axis(
         {   xbar,
@@ -111,9 +111,9 @@ for i in axes(axs, 1)
             "enlarge y limits = 0.75",
         },
 
-        Plot({color=c1, fill=c1}, Coordinates([get_importance_label(data_pre_covid, i) for i=1:best_kth])),
         Plot({color=c2, fill=c2}, Coordinates([get_importance_label(data_post_covid, i) for i=1:best_kth])),
-        ifelse(i==1, raw"\legend{Pre COVID-19, Post COVID-19}", "");
+        Plot({color=c1, fill=c1}, Coordinates([get_importance_label(data_pre_covid, i) for i=1:best_kth])),
+        ifelse(i==1, raw"\legend{Post COVID-19, Pre COVID-19}", "");
     );
 end
 
@@ -131,6 +131,7 @@ fig = @pgf TikzPicture(GroupPlot(
 pgfsave("./img/importance_comparison_aggregate.pdf", fig);
 
 
+#=
 # ------------------------------------
 # Pre-covid
 # ------------------------------------
@@ -213,3 +214,4 @@ fig = @pgf TikzPicture(GroupPlot(
 );
 
 pgfsave("./img/importance_post_covid.pdf", fig);
+=#
