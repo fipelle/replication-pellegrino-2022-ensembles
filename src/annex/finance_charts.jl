@@ -55,7 +55,7 @@ push!(PGFPlotsX.CUSTOM_PREAMBLE,
 latex_ith(i::Int64) = ifelse(i==0, "", ifelse(i>0, "+$(i)", "$(i)"));
 
 labels = vcat(
-    ["\$ y_{t $(latex_ith(i))} \$" for i=11:-1:0], 
+    ["\$ y_{t $(latex_ith(i))} \$" for i=-11:1:0], 
     # Levels
     ["\$ \\hat{\\psi}_{1,t $(latex_ith(i))} | t} \$" for i=-11:1:11],
     # Delta
