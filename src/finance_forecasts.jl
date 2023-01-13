@@ -196,12 +196,24 @@ for v in axes(forecast_array, 1)
     current_data_vintage_length = size(current_data_vintage, 1);
 
     #=
-    Use the following loop to re-estimate monthly rather than at every vintage
+    Use the following loop to re-estimate every time there is a release referring to a new month
 
+    ```
     previous_data_vintage = data_vintages[v-1];
     if month(current_data_vintage[end, :reference_dates]) != month(previous_data_vintage[end, :reference_dates])
         -> Recover hyperparameters and re-estimate
     end
+    ```
+    
+    or
+
+    ```
+    if month(current_data_vintage[end, :reference_dates]) != month(current_data_vintage[end-1, :reference_dates])
+        -> Recover hyperparameters and re-estimate
+    end
+    ```
+
+    to re-estimate every time there is a release referring to a new month, until the data for that month is complete [with `month(...)` this is equivalent to re-estimate every time a new vintage is released].
     =#
     
     # Recover hyperparameters
