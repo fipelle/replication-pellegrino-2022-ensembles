@@ -2,7 +2,6 @@
 using CSV, DataFrames, Dates, FileIO, JLD, Logging;
 using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, DecisionTree, StableRNGs, Statistics;
 using PGFPlotsX, LaTeXStrings;
-using Infiltrator;
 
 # WARNING MANUAL INPUT REQUIRED
 pre_covid_src_path  = "../../../yrl/replication-pellegrino-2022-ensembles/src";
@@ -24,18 +23,15 @@ function get_label_importance(jld_path::String, labels::Vector{String}; aggregat
     optimal_rf_instance = read(output["optimal_rf_instance"]);
     optimal_rf_importance = split_importance(optimal_rf_instance);
 
-    @infiltrate
     # Data
     if !aggregate
         data = DataFrame([labels optimal_rf_importance], [:label, :importance]);
-        @infiltrate
         sort!(data, [:importance], rev=true);
     else
         aggregate_labels = ["Autoregressive", "Augmentation"];
         optimal_rf_importance = [sum(optimal_rf_importance[1:12]), sum(optimal_rf_importance[13:end])];
         data = DataFrame([aggregate_labels optimal_rf_importance], [:label, :importance]);
     end
-    @infiltrate
 
     # Return output data
     return data;
@@ -131,7 +127,6 @@ fig = @pgf TikzPicture(GroupPlot(
 pgfsave("./img/importance_comparison_aggregate.pdf", fig);
 
 
-#=
 # ------------------------------------
 # Pre-covid
 # ------------------------------------
@@ -145,8 +140,7 @@ for i in axes(axs, 1)
 
     # Most important predictors (pre covid) 
     most_important_labels = data_pre_covid[best_kth:-1:1, :label];
-    @infiltrate
-
+    
     axs[i] = @pgf Axis(
         {   xbar,
             grid = "both",
@@ -154,7 +148,7 @@ for i in axes(axs, 1)
             xlabel = raw"importance",
             symbolic_y_coords=most_important_labels,
             ytick = "data",
-            xmin=0, xmax=0.6,
+            xmin=0, xmax=0.7,
         },
 
         Plot({color=c1, fill=c1}, Coordinates([get_importance_label(data_pre_covid, i) for i=1:best_kth])),
@@ -185,10 +179,9 @@ for i in axes(axs, 1)
     # Data
     data_post_covid  = get_label_importance("$(post_covid_src_path)/BC_output/1/output_equity_index_$(10+i)_false_true_true.jld", labels, aggregate=false);
 
-    # Most important postdictors (post covid) 
+    # Most important predictors (post covid) 
     most_important_labels = data_post_covid[best_kth:-1:1, :label];
-    @infiltrate
-
+    
     axs[i] = @pgf Axis(
         {   xbar,
             grid = "both",
@@ -196,10 +189,10 @@ for i in axes(axs, 1)
             xlabel = raw"importance",
             symbolic_y_coords=most_important_labels,
             ytick = "data",
-            xmin=0, xmax=0.6,
+            xmin=0, xmax=0.7,
         },
 
-        Plot({color=c1, fill=c1}, Coordinates([get_importance_label(data_post_covid, i) for i=1:best_kth])),
+        Plot({color=c2, fill=c2}, Coordinates([get_importance_label(data_post_covid, i) for i=1:best_kth])),
     );
 end
 
@@ -214,4 +207,3 @@ fig = @pgf TikzPicture(GroupPlot(
 );
 
 pgfsave("./img/importance_post_covid.pdf", fig);
-=#
