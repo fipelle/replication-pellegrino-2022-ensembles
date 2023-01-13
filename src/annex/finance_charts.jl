@@ -53,19 +53,19 @@ push!(PGFPlotsX.CUSTOM_PREAMBLE,
 )
 
 labels = vcat(
-    ["\$ y_{t-$i} \$" for i=1:12], 
+    ["\$ y_{t-$i} \$" for i=12:-1:1], 
     # Levels
-    ["\$ \\hat{\\psi}_{1,t+$i | t} \$" for i=11:-1:1],
+    ["\$ \\hat{\\psi}_{1,t-$i | t} \$" for i=11:-1:1],
      "\$ \\hat{\\psi}_{1,t | t} \$",
-    ["\$ \\hat{\\psi}_{1,t-$i | t} \$" for i=1:11],
+    ["\$ \\hat{\\psi}_{1,t+$i | t} \$" for i=1:11],
     # Delta
-    ["\$ \\hat{\\psi}_{1,t+$i | t} - \\hat{\\psi}_{1,t+$(i-1) | t} \$" for i=11:-1:2],
-     "\$ \\hat{\\psi}_{1,t+1 | t} - \\hat{\\psi}_{1,t | t} \$",
-     "\$ \\hat{\\psi}_{1,t | t} - \\hat{\\psi}_{1,t-1 | t} \$",
-    ["\$ \\hat{\\psi}_{1,t-$(i-1) | t} - \\hat{\\psi}_{1,t-$i | t} \$" for i=2:11],
+    ["\$ \\hat{\\psi}_{1,t-$(i-1) | t} - \\hat{\\psi}_{1,t-$i | t} \$" for i=11:-1:2],
+    "\$ \\hat{\\psi}_{1,t | t} - \\hat{\\psi}_{1,t-1 | t} \$",
+    "\$ \\hat{\\psi}_{1,t+1 | t} - \\hat{\\psi}_{1,t | t} \$",
+    ["\$ \\hat{\\psi}_{1,t+$i | t} - \\hat{\\psi}_{1,t+$(i-1) | t} \$" for i=2:11],
     # Wrt to time t
-    ["\$ \\hat{\\psi}_{1,t+$i | t} - \\hat{\\psi}_{1,t | t} \$" for i=11:-1:2],
-    ["\$ \\hat{\\psi}_{1,t | t} - \\hat{\\psi}_{1,t-$i | t} \$" for i=2:11],
+    ["\$ \\hat{\\psi}_{1,t | t} - \\hat{\\psi}_{1,t-$i | t} \$" for i=11:-1:2],
+    ["\$ \\hat{\\psi}_{1,t+$i | t} - \\hat{\\psi}_{1,t | t} \$" for i=2:11],
 )
 
 # Colors
