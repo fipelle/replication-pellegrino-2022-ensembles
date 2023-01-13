@@ -2,10 +2,11 @@
 using CSV, DataFrames, Dates, FileIO, JLD, Logging;
 using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, DecisionTree, StableRNGs, Statistics;
 using PGFPlotsX, LaTeXStrings;
+using Infiltrator;
 
 # WARNING MANUAL INPUT REQUIRED
-pre_covid_src_path  = "";
-post_covid_src_path = "";
+pre_covid_src_path  = "../../../yrl/replication-pellegrino-2022-ensembles/src";
+post_covid_src_path = "../../../mnt/replication-pellegrino-2022-ensembles/src";
 
 # It it indifferent which prefix you use here
 include("$(pre_covid_src_path)/macro_functions.jl");
@@ -23,6 +24,7 @@ function get_label_importance(jld_path::String, labels::Vector{String}; aggregat
     optimal_rf_instance = read(output["optimal_rf_instance"]);
     optimal_rf_importance = split_importance(optimal_rf_instance);
 
+    @infiltrate
     # Data
     if !aggregate
         data = DataFrame([labels optimal_rf_importance], [:label, :importance]);
@@ -32,6 +34,7 @@ function get_label_importance(jld_path::String, labels::Vector{String}; aggregat
         optimal_rf_importance = [sum(optimal_rf_importance[1:12]), sum(optimal_rf_importance[13:end])];
         data = DataFrame([aggregate_labels optimal_rf_importance], [:label, :importance]);
     end
+    @infiltrate
 
     # Return output data
     return data;
@@ -76,6 +79,7 @@ using Colors;
 c1 = colorant"rgba(0, 48, 158, .75)";
 c2 = colorant"rgba(255, 0, 0, .75)";
 
+
 # ------------------------------------
 # Aggregate
 # ------------------------------------
@@ -93,6 +97,7 @@ for i in axes(axs, 1)
 
     # Most important predictors (pre covid) 
     most_important_labels = data_pre_covid[best_kth:-1:1, :label];
+    @infiltrate
 
     axs[i] = @pgf Axis(
         {   xbar,
@@ -107,7 +112,7 @@ for i in axes(axs, 1)
         },
 
         Plot({color=c1, fill=c1}, Coordinates([get_importance_label(data_pre_covid, i) for i=1:best_kth])),
-        Plot({color=c2, fill=c2}, Coordinates([ifelse(data_post_covid[i, :label] in most_important_labels, get_importance_label(data_post_covid, i), ()) for i in axes(data_post_covid, 1)])),
+        Plot({color=c2, fill=c2}, Coordinates([get_importance_label(data_post_covid, i) for i=1:best_kth])),
         ifelse(i==1, raw"\legend{Pre COVID-19, Post COVID-19}", "");
     );
 end
@@ -139,6 +144,7 @@ for i in axes(axs, 1)
 
     # Most important predictors (pre covid) 
     most_important_labels = data_pre_covid[best_kth:-1:1, :label];
+    @infiltrate
 
     axs[i] = @pgf Axis(
         {   xbar,
@@ -180,6 +186,7 @@ for i in axes(axs, 1)
 
     # Most important postdictors (post covid) 
     most_important_labels = data_post_covid[best_kth:-1:1, :label];
+    @infiltrate
 
     axs[i] = @pgf Axis(
         {   xbar,
