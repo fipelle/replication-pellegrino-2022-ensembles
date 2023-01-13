@@ -2,8 +2,14 @@
 using CSV, DataFrames, Dates, FileIO, JLD, Logging;
 using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, DecisionTree, StableRNGs, Statistics;
 using PGFPlotsX, LaTeXStrings;
-include("./yrl/replication-pellegrino-2022-ensembles/src/macro_functions.jl");
-include("./yrl/replication-pellegrino-2022-ensembles/src/finance_functions.jl");
+
+# WARNING MANUAL INPUT REQUIRED
+pre_covid_src_path  = "";
+post_covid_src_path = "";
+
+# It it indifferent which prefix you use here
+include("$(pre_covid_src_path)/macro_functions.jl");
+include("$(pre_covid_src_path)/finance_functions.jl");
 
 """
     get_label_importance(jld_path::String, labels::Vector{String}; aggregate::Bool=true)
@@ -79,8 +85,8 @@ axs = Array{Any}(undef, 10);
 for i in axes(axs, 1)
 
     # Data
-    data_pre_covid  = get_label_importance("./yrl/replication-pellegrino-2022-ensembles/src/BC_output/1/output_equity_index_$(10+i)_false_true_true.jld", labels, aggregate=true);
-    data_post_covid = get_label_importance("./mnt/replication-pellegrino-2022-ensembles/src/BC_output/1/output_equity_index_$(10+i)_false_true_true.jld", labels, aggregate=true);
+    data_pre_covid  = get_label_importance("$(pre_covid_src_path)/BC_output/1/output_equity_index_$(10+i)_false_true_true.jld", labels, aggregate=true);
+    data_post_covid = get_label_importance("$(post_covid_src_path)/BC_output/1/output_equity_index_$(10+i)_false_true_true.jld", labels, aggregate=true);
     
     # Legend
     legend_style_content = ifelse(i==1, raw"{column sep = 10pt, legend columns = -1, legend to name = grouplegend, draw=none,}", "");
@@ -129,7 +135,7 @@ axs = Array{Any}(undef, 10);
 for i in axes(axs, 1)
 
     # Data
-    data_pre_covid  = get_label_importance("./yrl/replication-pellegrino-2022-ensembles/src/BC_output/1/output_equity_index_$(10+i)_false_true_true.jld", labels, aggregate=false);
+    data_pre_covid  = get_label_importance("$(pre_covid_src_path)/BC_output/1/output_equity_index_$(10+i)_false_true_true.jld", labels, aggregate=false);
 
     # Most important predictors (pre covid) 
     most_important_labels = data_pre_covid[best_kth:-1:1, :label];
@@ -170,7 +176,7 @@ axs = Array{Any}(undef, 10);
 for i in axes(axs, 1)
 
     # Data
-    data_post_covid  = get_label_importance("./mnt/replication-pellegrino-2022-ensembles/src/BC_output/1/output_equity_index_$(10+i)_false_true_true.jld", labels, aggregate=false);
+    data_post_covid  = get_label_importance("$(post_covid_src_path)/BC_output/1/output_equity_index_$(10+i)_false_true_true.jld", labels, aggregate=false);
 
     # Most important postdictors (post covid) 
     most_important_labels = data_post_covid[best_kth:-1:1, :label];
