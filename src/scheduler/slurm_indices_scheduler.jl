@@ -23,7 +23,7 @@ end
 
 # Loop over the equity indices
 for equity_index_id=11:20
-    for regression_model=1:2
+    for regression_model=1:1
         for compute_ep_cycle=[false]#[false; true]
             for (include_factor_augmentation, include_factor_transformations) in [(false, false), (true, true)]
 
