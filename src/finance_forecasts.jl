@@ -144,9 +144,6 @@ end
 # Optimal hyperparameter
 optimal_rf_settings = grid_hyperparameters[argmin(validation_errors)];
 
-# Convert optimal `min_samples_leaf` in percentage terms
-optimal_rf_settings[:min_samples_leaf] = range_min_samples_leaf[findfirst(grid_min_samples_leaf .== optimal_rf_settings[:min_samples_leaf])];
-
 # Update logs
 @info("Optimal hyperparameters: $(optimal_rf_settings)");
 flush(io);
@@ -165,7 +162,7 @@ Note that I am using Vectors{...} for the first three variables to avoid scope e
 
 sspace = Vector{Union{Nothing, KalmanSettings}}(undef, 1);
 std_diff_data = Vector{Union{Nothing, FloatMatrix}}(undef, 1);
-optimal_rf_instance = Vector{Ridge}(undef, 1);
+optimal_rf_instance = Vector{Any}(undef, 1);
 outturn_array = zeros(length(data_vintages));
 forecast_array = zeros(length(data_vintages));
 
@@ -201,7 +198,6 @@ for v in axes(forecast_array, 1)
     
     # Recover hyperparameters
     current_optimal_rf_settings = copy(optimal_rf_settings);
-    current_optimal_rf_settings[:min_samples_leaf] = ceil(optimal_rf_settings[:min_samples_leaf]*(current_data_vintage_length-1)) |> Int64; # current_data_vintage_length-1 is fine
     
     # Re-estimate random forest
     sspace[1], std_diff_data[1], selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(current_data_vintage[1:end-1, :], equity_index[1:size(current_data_vintage, 1)], current_data_vintage_length - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
