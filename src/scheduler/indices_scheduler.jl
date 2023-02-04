@@ -1,13 +1,13 @@
 function get_qsub_content(equity_index_id::Int64, regression_model::Int64, compute_ep_cycle::Bool, include_factor_augmentation::Bool, include_factor_transformations::Bool)
     
     julia_log_folder_path = ifelse(compute_ep_cycle, "./BC_and_EP_output", "./BC_output");
-    qsub_log_output = "\$HOME/Documents/replication-pellegrino-2022-ensembles/src/scheduler/logs/$(regression_model)/\$JOB_NAME.\$JOB_ID.output";
+    qsub_log_output = "\$HOME/Documents/replication-pellegrino-2022-ensembles-ridge/src/scheduler/logs/$(regression_model)/\$JOB_NAME.\$JOB_ID.output";
     qsub_name = "m$(equity_index_id)_$(regression_model)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(include_factor_transformations)";
     qsub_command = "julia finance_forecasts.jl $(equity_index_id) $(regression_model) $(compute_ep_cycle) $(include_factor_augmentation) $(include_factor_transformations) $(julia_log_folder_path)"
 
     qsub_content = """
     #!/bin/bash -login
-    #\$ -wd \$HOME/Documents/replication-pellegrino-2022-ensembles/src
+    #\$ -wd \$HOME/Documents/replication-pellegrino-2022-ensembles-ridge/src
     #\$ -V
     #\$ -j y
     #\$ -o $(qsub_log_output)

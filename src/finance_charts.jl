@@ -5,8 +5,8 @@ using PGFPlotsX, LaTeXStrings;
 @sk_import linear_model: Ridge;
 
 # WARNING MANUAL INPUT REQUIRED
-pre_covid_src_path  = "../../../yrl/replication-pellegrino-2022-ensembles/src";
-post_covid_src_path = "../../../mnt/replication-pellegrino-2022-ensembles/src";
+pre_covid_src_path  = "../../../yrl/replication-pellegrino-2022-ensembles-ridge/src";
+post_covid_src_path = "../../../mnt/replication-pellegrino-2022-ensembles-ridge/src";
 
 # It it indifferent which prefix you use here
 include("$(pre_covid_src_path)/macro_functions.jl");

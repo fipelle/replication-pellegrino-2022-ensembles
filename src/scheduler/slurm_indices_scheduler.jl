@@ -11,9 +11,9 @@ function get_sbatch_content(equity_index_id::Int64, regression_model::Int64, com
     #SBATCH --nodes=1
     #SBATCH --cpus-per-task 2
     #SBATCH --job-name=$(sbatch_name)
-    #SBATCH --error=/users/pellegr5/replication-pellegrino-2022-ensembles/src/scheduler/logs/$(regression_model)/%x_%N_%j.err
-    #SBATCH --output=/users/pellegr5/replication-pellegrino-2022-ensembles/src/scheduler/logs/$(regression_model)/%x_%N_%j.out
-    #SBATCH --chdir=/users/pellegr5/replication-pellegrino-2022-ensembles/src
+    #SBATCH --error=/users/pellegr5/replication-pellegrino-2022-ensembles-ridge/src/scheduler/logs/$(regression_model)/%x_%N_%j.err
+    #SBATCH --output=/users/pellegr5/replication-pellegrino-2022-ensembles-ridge/src/scheduler/logs/$(regression_model)/%x_%N_%j.out
+    #SBATCH --chdir=/users/pellegr5/replication-pellegrino-2022-ensembles-ridge/src
 
     module add apps/julia/1.6.7
     $(sbatch_command)""";
