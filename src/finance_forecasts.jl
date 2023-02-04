@@ -1,6 +1,7 @@
 # Libraries
 using CSV, DataFrames, Dates, FileIO, JLD, Logging;
-using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, DecisionTree, StableRNGs, Statistics;
+using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, ScikitLearn, StableRNGs, Statistics;
+@sk_import linear_model: Ridge;
 include("./macro_functions.jl");
 include("./finance_functions.jl");
 
@@ -118,32 +119,14 @@ n_predictors, estimation_sample_adj_length = size(estimation_samples_predictors)
 @info("Construct hyperparameters grid");
 flush(io);
 
-# Compute validation error
-grid_partial_sampling  = [1.0];                                                           # the number of samples to draw from X to train each base estimator
-range_min_samples_leaf = range(0.01, stop=0.50, length=25);
-grid_min_samples_leaf  = collect(range_min_samples_leaf .* estimation_sample_adj_length); # the minimum number of samples required to be at a leaf node
-grid_min_samples_leaf  = unique(ceil.(grid_min_samples_leaf)) |> Vector{Int64};           # round to nearest integers
-
 # Bagging
-if regression_model == 1
-    grid_n_subfeatures = [n_predictors];                                                  # the default of `n_predictors` is equivalent to bagged trees
-
-# Random forest
-elseif regression_model == 2
-    grid_n_subfeatures = collect(range(0.05, stop=0.95, length=25) .* n_predictors);      # more randomness can be achieved by setting smaller values than `n_predictors`
-    grid_n_subfeatures = unique(ceil.(grid_n_subfeatures)) |> Vector{Int64};              # round to nearest integers
-
-else
+if regression_model != 1
     error("Unsupported `regression_model!`")
 end
 
 grid_hyperparameters = Vector{Dict}();
-for partial_sampling in grid_partial_sampling
-    for n_subfeatures in grid_n_subfeatures
-        for min_samples_leaf in grid_min_samples_leaf
-            push!(grid_hyperparameters, Dict(:rng => rng, :n_trees => n_trees, :partial_sampling => partial_sampling, :n_subfeatures => n_subfeatures, :min_samples_leaf => min_samples_leaf));
-        end
-    end
+for alpha in range(0.01, stop=1.0, length=25)
+    push!(grid_hyperparameters, Dict(:solver => "svd", :alpha => alpha, :fit_intercept => true))
 end
 
 @info("------------------------------------------------------------")
@@ -155,7 +138,7 @@ validation_errors = zeros(length(grid_hyperparameters));
 
 # Compute the validation mean squared error looping over each candidate hyperparameter
 for (i, model_settings) in enumerate(grid_hyperparameters)
-    _, _, validation_errors[i] = estimate_and_validate_dt_model(estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors, RandomForestRegressor, model_settings);
+    _, _, validation_errors[i] = estimate_and_validate_dt_model(estimation_samples_target, estimation_samples_predictors, validation_samples_target, validation_samples_predictors, Ridge, model_settings);
 end
 
 # Optimal hyperparameter
@@ -182,7 +165,7 @@ Note that I am using Vectors{...} for the first three variables to avoid scope e
 
 sspace = Vector{Union{Nothing, KalmanSettings}}(undef, 1);
 std_diff_data = Vector{Union{Nothing, FloatMatrix}}(undef, 1);
-optimal_rf_instance = Vector{RandomForestRegressor}(undef, 1);
+optimal_rf_instance = Vector{Ridge}(undef, 1);
 outturn_array = zeros(length(data_vintages));
 forecast_array = zeros(length(data_vintages));
 
@@ -222,7 +205,7 @@ for v in axes(forecast_array, 1)
     
     # Re-estimate random forest
     sspace[1], std_diff_data[1], selection_samples_target, selection_samples_predictors, _ = get_macro_data_partitions(current_data_vintage[1:end-1, :], equity_index[1:size(current_data_vintage, 1)], current_data_vintage_length - 1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling);
-    optimal_rf_instance[1] = estimate_dt_model(selection_samples_target, selection_samples_predictors, RandomForestRegressor, current_optimal_rf_settings);        
+    optimal_rf_instance[1] = estimate_dt_model(selection_samples_target, selection_samples_predictors, Ridge, current_optimal_rf_settings);        
 
     #=
     Compute predictor matrix and get outturn for the target
@@ -232,7 +215,7 @@ for v in axes(forecast_array, 1)
     _, _, _, _, current_target, current_predictors = get_macro_data_partitions(current_data_vintage, equity_index[1:current_data_vintage_length + 1], current_data_vintage_length-1, optimal_hyperparams, model_args, model_kwargs, include_factor_augmentation, include_factor_transformations, compute_ep_cycle, n_cycles, coordinates_params_rescaling, sspace[1], std_diff_data[1]);
 
     # Store new forecast
-    forecast_array[v] = DecisionTree.predict(optimal_rf_instance[1], permutedims(current_predictors))[end]; # the function returns a 1-dimensional vector
+    forecast_array[v] = ScikitLearn.predict(optimal_rf_instance[1], permutedims(current_predictors))[end]; # the function returns a 1-dimensional vector
 
     # Store current outturn
     outturn_array[v] = current_target[end]; # current_target is a 1-dimensional vector

@@ -227,7 +227,7 @@ function estimate_dt_model(estimation_samples_target::FloatVector, estimation_sa
     model_instance = model(; model_settings...);
     
     # Estimation
-    DecisionTree.fit!(model_instance, permutedims(estimation_samples_predictors), estimation_samples_target); # in DecisionTree all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+    ScikitLearn.fit!(model_instance, permutedims(estimation_samples_predictors), estimation_samples_target); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
     
     # Return model instance
     return model_instance;
@@ -244,7 +244,7 @@ function estimate_and_validate_dt_model(estimation_samples_target::FloatVector, 
     model_instance = estimate_dt_model(estimation_samples_target, estimation_samples_predictors, model, model_settings);
 
     # Validation sample forecasts
-    validation_forecasts = DecisionTree.predict(model_instance, permutedims(validation_samples_predictors)); # in DecisionTree all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
+    validation_forecasts = ScikitLearn.predict(model_instance, permutedims(validation_samples_predictors)); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)
 
     # Compute validation error
     validation_error = mean((validation_samples_target .- validation_forecasts).^2);

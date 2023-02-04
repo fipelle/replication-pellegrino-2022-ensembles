@@ -1,7 +1,8 @@
 # Libraries
 using CSV, DataFrames, Dates, FileIO, JLD, Logging;
-using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, DecisionTree, StableRNGs, Statistics;
+using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, ScikitLearn, StableRNGs, Statistics;
 using PGFPlotsX, LaTeXStrings;
+@sk_import linear_model: Ridge;
 
 # WARNING MANUAL INPUT REQUIRED
 pre_covid_src_path  = "../../../yrl/replication-pellegrino-2022-ensembles/src";

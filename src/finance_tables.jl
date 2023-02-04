@@ -1,6 +1,7 @@
 # Libraries
 using CSV, DataFrames, Dates, FileIO, JLD, Latexify, Logging;
-using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, DecisionTree, Statistics;
+using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, ScikitLearn, Statistics;
+@sk_import linear_model: Ridge;
 include("./macro_functions.jl");
 include("./finance_functions.jl");
 
