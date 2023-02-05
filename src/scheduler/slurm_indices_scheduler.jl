@@ -44,7 +44,7 @@ for equity_index_id=11:20
                 run(`sbatch index.sbatch`);
 
                 # Wait before starting the next iteration
-                sleep(5);
+                sleep(30);
             end
         end
     end
