@@ -127,7 +127,7 @@ if regression_model != 1
 end
 
 grid_hyperparameters = Vector{Dict}();
-for alpha in range(0.01, stop=1.0, length=25)
+for alpha in range(0.1, stop=100.0, length=25)
     push!(grid_hyperparameters, Dict(:solver => "svd", :alpha => alpha, :fit_intercept => false))
 end
 
