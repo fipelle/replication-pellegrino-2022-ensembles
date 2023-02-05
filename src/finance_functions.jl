@@ -224,7 +224,7 @@ Estimate `model` given the settings in `model_settings`.
 function estimate_dt_model(estimation_samples_target::FloatVector, estimation_samples_predictors::FloatMatrix, model::Any, model_settings::Dict)
     
     # Generate `model` instance
-    model_instance = model(; model_settings...);
+    model_instance = Pipelines.make_pipeline(StandardScaler(), model(; model_settings...));
     
     # Estimation
     ScikitLearn.fit!(model_instance, permutedims(estimation_samples_predictors), estimation_samples_target); # in ScikitLearn all input predictors matrices are vertical - i.e., of shape (n_sample, n_feature)

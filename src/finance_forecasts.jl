@@ -2,6 +2,8 @@
 using CSV, DataFrames, Dates, FileIO, JLD, Logging;
 using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, ScikitLearn, StableRNGs, Statistics;
 @sk_import linear_model: Ridge;
+@sk_import preprocessing: StandardScaler;
+
 include("./macro_functions.jl");
 include("./finance_functions.jl");
 
@@ -126,7 +128,7 @@ end
 
 grid_hyperparameters = Vector{Dict}();
 for alpha in range(0.01, stop=1.0, length=25)
-    push!(grid_hyperparameters, Dict(:solver => "svd", :alpha => alpha, :fit_intercept => true))
+    push!(grid_hyperparameters, Dict(:solver => "svd", :alpha => alpha, :fit_intercept => false))
 end
 
 @info("------------------------------------------------------------")

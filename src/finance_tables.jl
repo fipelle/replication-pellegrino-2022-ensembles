@@ -2,6 +2,8 @@
 using CSV, DataFrames, Dates, FileIO, JLD, Latexify, Logging;
 using LinearAlgebra, MessyTimeSeries, MessyTimeSeriesOptim, ScikitLearn, Statistics;
 @sk_import linear_model: Ridge;
+@sk_import preprocessing: StandardScaler;
+
 include("./macro_functions.jl");
 include("./finance_functions.jl");
 
