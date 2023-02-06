@@ -11,20 +11,20 @@ function retrieve_rmse(output_folder_name::String, equity_index_id::Int64, compu
     
     # Models
     bagging       = read(jldopen("$(output_folder_name)/1/output_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(include_factor_transformations).jld")["forecast_array"]);
-    random_forest = read(jldopen("$(output_folder_name)/2/output_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(include_factor_transformations).jld")["forecast_array"]);
+    #random_forest = read(jldopen("$(output_folder_name)/2/output_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(include_factor_transformations).jld")["forecast_array"]);
 
     # Outturn
     outturn = read(jldopen("$(output_folder_name)/1/output_equity_index_$(equity_index_id)_$(compute_ep_cycle)_$(include_factor_augmentation)_$(include_factor_transformations).jld")["outturn_array"])
     
     if pre_covid
         bagging = bagging[1:812];
-        random_forest = random_forest[1:812];
+        #random_forest = random_forest[1:812];
         outturn = outturn[1:812];
     end
 
     # Squared errors
     se_bagging = (bagging-outturn).^2;
-    se_random_forest = (random_forest-outturn).^2;
+    se_random_forest = similar(se_bagging); #(random_forest-outturn).^2;
     se_random_walk = (outturn).^2;
 
     # Return forecast error
