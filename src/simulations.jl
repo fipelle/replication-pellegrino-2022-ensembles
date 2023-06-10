@@ -52,8 +52,8 @@ function simulate_data(
 end
 
 # Memory pre-allocation for output
-ols_errors = zeros(10);
-rf_errors = zeros(10);
+ols_errors = zeros(11);
+rf_errors = zeros(11, 3);
 
 # Loop over non linear weight
 for (index, nlin_weight) in enumerate(collect(0:0.1:1))
@@ -82,13 +82,16 @@ for (index, nlin_weight) in enumerate(collect(0:0.1:1))
     - with a large number of constituent trees
     =#
 
-    # Model instance
-    rf_instance = RandomForestRegressor(rng=1, n_trees=1000, partial_sampling=1.0, n_subfeatures=1, max_depth=1);
+    for max_depth=[1,2,3]
 
-    # Fit
-    DecisionTree.fit!(rf_instance, X[:,:], y);
+        # Model instance
+        rf_instance = RandomForestRegressor(rng=1, n_trees=1000, partial_sampling=1.0, n_subfeatures=1, max_depth=max_depth);
 
-    # Compute error
-    rf_iis_fc = DecisionTree.predict(rf_instance, X[:,:]);
-    rf_errors[index] = mean((y-rf_iis_fc).^2);
+        # Fit
+        DecisionTree.fit!(rf_instance, X[:,:], y);
+
+        # Compute error
+        rf_iis_fc = DecisionTree.predict(rf_instance, X[:,:]);
+        rf_errors[index, max_depth] = mean((y-rf_iis_fc).^2); # WARNING: indexing over max_depth is fine as long as there aren't breaks or jumps in the grid
+    end
 end
