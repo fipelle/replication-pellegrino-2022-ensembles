@@ -53,9 +53,9 @@ end
 
 # Memory pre-allocation for output
 ols_errors = zeros(11);
-rf_errors = zeros(11, 3);
+rf_errors = zeros(11, 2);
 
-for simulation in collect(1:500)
+for simulation in collect(1:1000)
     
     @info("Simulation $(simulation)");
 
@@ -87,7 +87,7 @@ for simulation in collect(1:500)
         - with a large number of constituent trees
         =#
 
-        for max_depth=[1,2,3]
+        for max_depth=[1,2]
 
             # Model instance
             rf_instance = RandomForestRegressor(rng=simulation, n_trees=1000, partial_sampling=1.0, n_subfeatures=1, max_depth=max_depth);
@@ -101,3 +101,11 @@ for simulation in collect(1:500)
         end
     end
 end
+
+# Save output to disk
+save("./simulations/simulations.jld",
+    Dict(
+        "ols_errors" => ols_errors,
+        "rf_errors" => rf_errors,
+    )
+);
