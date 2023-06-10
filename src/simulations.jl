@@ -3,7 +3,7 @@ using Distributed;
 @everywhere using MessyTimeSeriesOptim;
 @everywhere include("./get_real_time_datasets.jl");
 using CSV, FileIO, JLD;
-using Random, LinearAlgebra, MessyTimeSeries, Statistics;
+using DecisionTree, Random, LinearAlgebra, MessyTimeSeries, Statistics;
 
 """
     simulate_data(
@@ -51,20 +51,44 @@ function simulate_data(
     return cycle[burnin+1:end], target[burnin+1:end];
 end
 
-cycle, target = simulate_data(
-    100,
-    1.0,
-    -0.20,
-    +0.15,
-    0.0,
-    burnin=100
-);
+# Memory pre-allocation for output
+ols_errors = zeros(10);
+rf_errors = zeros(10);
 
-# Estimation sample
-X = cycle[1:end-1];
-y = target[2:end];
+# Loop over non linear weight
+for (index, nlin_weight) in enumerate(collect(0:0.1:1))
+    
+    cycle, target = simulate_data(
+        100,
+        1.0,
+        -0.20,
+        +0.15,
+        nlin_weight,
+        burnin=100
+    );
 
-# OLS error
-ols = (X'*X)\X'*y;
-ols_iis_fc = ols*X;
-ols_iis_err = mean((y-ols_iis_fc).^2);
+    # Estimation sample
+    X = cycle[1:end-1];
+    y = target[2:end];
+
+    # OLS error
+    ols = (X'*X)\X'*y;
+    ols_iis_fc = ols*X;
+    ols_errors[index] = mean((y-ols_iis_fc).^2);
+
+    #=
+    Tree ensemble error
+    - for max tree depth 1, 2 and 3
+    - with a large number of constituent trees
+    =#
+
+    # Model instance
+    rf_instance = RandomForestRegressor(rng=1, n_trees=1000, partial_sampling=1.0, n_subfeatures=1, max_depth=1);
+
+    # Fit
+    DecisionTree.fit!(rf_instance, X[:,:], y);
+
+    # Compute error
+    rf_iis_fc = DecisionTree.predict(rf_instance, X[:,:]);
+    rf_errors[index] = mean((y-rf_iis_fc).^2);
+end
