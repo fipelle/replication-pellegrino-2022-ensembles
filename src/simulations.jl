@@ -12,6 +12,7 @@ using Random, LinearAlgebra, MessyTimeSeries;
         nlin_coeff_1 :: Float64,
         nlin_coeff_2 :: Float64,
         nlin_weight  :: Float64;
+        seed         :: Int64 = 1,
         burnin       :: Int64 = 100,
     )
 
@@ -23,6 +24,7 @@ function simulate_data(
     nlin_coeff_1 :: Float64,
     nlin_coeff_2 :: Float64,
     nlin_weight  :: Float64;
+    seed         :: Int64 = 1,
     burnin       :: Int64 = 100,
 )
 
@@ -31,10 +33,10 @@ function simulate_data(
     target = zeros(T+burnin);
     
     # Loop over time
-    for t=2:T+burnin
+    for t=3:T+burnin
         
         # Cycle value for time t
-        cycle[t] = 0.9*cycle[t-1] + randn();
+        cycle[t] = 1.419*cycle[t-1] -0.544*cycle[t-2] + 0.0201*randn(); # parameters from Clark (1987, table 2)
         
         # Target value for time t
         nlin_threshold = cycle[t-1] <= 0;
