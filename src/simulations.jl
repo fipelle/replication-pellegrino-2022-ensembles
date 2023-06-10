@@ -1,3 +1,10 @@
+# Libraries
+using Distributed;
+@everywhere using MessyTimeSeriesOptim;
+@everywhere include("./get_real_time_datasets.jl");
+using CSV, FileIO, JLD;
+using Random, LinearAlgebra, MessyTimeSeries;
+
 """
     simulate_data(
         T            :: Int64,
