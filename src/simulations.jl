@@ -28,6 +28,9 @@ function simulate_data(
     burnin       :: Int64 = 100,
 )
 
+    # Set random seed
+    Random.seed!(seed);
+    
     # Pre-allocate memory for output
     cycle = zeros(T+burnin);
     target = zeros(T+burnin);
