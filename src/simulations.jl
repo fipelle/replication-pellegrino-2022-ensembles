@@ -3,7 +3,7 @@ using Distributed;
 @everywhere using MessyTimeSeriesOptim;
 @everywhere include("./get_real_time_datasets.jl");
 using CSV, FileIO, JLD;
-using Random, LinearAlgebra, MessyTimeSeries;
+using Random, LinearAlgebra, MessyTimeSeries, Statistics;
 
 """
     simulate_data(
@@ -56,6 +56,15 @@ cycle, target = simulate_data(
     1.0,
     -0.20,
     +0.15,
-    0.5,
+    0.0,
     burnin=100
 );
+
+# Estimation sample
+X = cycle[1:end-1];
+y = target[2:end];
+
+# OLS error
+ols = (X'*X)\X'*y;
+ols_iis_fc = ols*X;
+ols_iis_err = mean((y-ols_iis_fc).^2);
