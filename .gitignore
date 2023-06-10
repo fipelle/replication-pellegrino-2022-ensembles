@@ -1,0 +1,8 @@
+# Ignore Julia binary output
+*.jld
+*.jld2
+
+# Ignore data
+*.csv
+*.xls
+*.xlsx
