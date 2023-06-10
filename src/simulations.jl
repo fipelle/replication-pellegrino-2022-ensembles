@@ -55,43 +55,47 @@ end
 ols_errors = zeros(11);
 rf_errors = zeros(11, 3);
 
-# Loop over non linear weight
-for (index, nlin_weight) in enumerate(collect(0:0.1:1))
-    
-    cycle, target = simulate_data(
-        100,
-        1.0,
-        -0.20,
-        +0.15,
-        nlin_weight,
-        burnin=100
-    );
+for simulation in collect(1:500)
+        
+    # Loop over non linear weight
+    for (index, nlin_weight) in enumerate(collect(0:0.1:1))
+        
+        cycle, target = simulate_data(
+            100,
+            1.0,
+            -0.20,
+            +0.15,
+            nlin_weight,
+            burnin=100,
+            seed=simulation
+        );
 
-    # Estimation sample
-    X = cycle[1:end-1];
-    y = target[2:end];
+        # Estimation sample
+        X = cycle[1:end-1];
+        y = target[2:end];
 
-    # OLS error
-    ols = (X'*X)\X'*y;
-    ols_iis_fc = ols*X;
-    ols_errors[index] = mean((y-ols_iis_fc).^2);
+        # OLS error
+        ols = (X'*X)\X'*y;
+        ols_iis_fc = ols*X;
+        ols_errors[index] += mean((y-ols_iis_fc).^2);
 
-    #=
-    Tree ensemble error
-    - for max tree depth 1, 2 and 3
-    - with a large number of constituent trees
-    =#
+        #=
+        Tree ensemble error
+        - for max tree depth 1, 2 and 3
+        - with a large number of constituent trees
+        =#
 
-    for max_depth=[1,2,3]
+        for max_depth=[1,2,3]
 
-        # Model instance
-        rf_instance = RandomForestRegressor(rng=1, n_trees=1000, partial_sampling=1.0, n_subfeatures=1, max_depth=max_depth);
+            # Model instance
+            rf_instance = RandomForestRegressor(rng=simulation, n_trees=1000, partial_sampling=1.0, n_subfeatures=1, max_depth=max_depth);
 
-        # Fit
-        DecisionTree.fit!(rf_instance, X[:,:], y);
+            # Fit
+            DecisionTree.fit!(rf_instance, X[:,:], y);
 
-        # Compute error
-        rf_iis_fc = DecisionTree.predict(rf_instance, X[:,:]);
-        rf_errors[index, max_depth] = mean((y-rf_iis_fc).^2); # WARNING: indexing over max_depth is fine as long as there aren't breaks or jumps in the grid
+            # Compute error
+            rf_iis_fc = DecisionTree.predict(rf_instance, X[:,:]);
+            rf_errors[index, max_depth] += mean((y-rf_iis_fc).^2); # WARNING: indexing over max_depth is fine as long as there aren't breaks or jumps in the grid
+        end
     end
 end
