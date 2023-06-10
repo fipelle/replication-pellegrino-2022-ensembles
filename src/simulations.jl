@@ -56,7 +56,9 @@ ols_errors = zeros(11);
 rf_errors = zeros(11, 3);
 
 for simulation in collect(1:500)
-        
+    
+    @info("Simulation no$(simulation)");
+
     # Loop over non linear weight
     for (index, nlin_weight) in enumerate(collect(0:0.1:1))
         
