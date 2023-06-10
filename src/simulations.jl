@@ -30,7 +30,7 @@ function simulate_data(
 
     # Set random seed
     Random.seed!(seed);
-    
+
     # Pre-allocate memory for output
     cycle = zeros(T+burnin);
     target = zeros(T+burnin);
@@ -53,9 +53,9 @@ end
 
 cycle, target = simulate_data(
     100,
-    -0.5,
-    -2.0,
     1.0,
+    -0.20,
+    +0.15,
     0.5,
     burnin=100
 );
