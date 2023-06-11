@@ -131,9 +131,9 @@ end
 
 # Run simulations
 ols_errors_T100_noise0, rf_errors_T100_noise0 = run_simulations(100, 1000, 0.0);
-ols_errors_T100_noise1, rf_errors_T100_noise1 = run_simulations(100, 1000, 1.0);
+ols_errors_T100_noise1, rf_errors_T100_noise1 = run_simulations(100, 1000, 0.0074); # parameters from Clark (1987, table 1) to resemble something akin to the business cycle
 ols_errors_T200_noise0, rf_errors_T200_noise0 = run_simulations(200, 1000, 0.0);
-ols_errors_T200_noise1, rf_errors_T200_noise1 = run_simulations(200, 1000, 1.0);
+ols_errors_T200_noise1, rf_errors_T200_noise1 = run_simulations(200, 1000, 0.0074); # parameters from Clark (1987, table 1) to resemble something akin to the business cycle
 
 # Save output to disk
 save("./simulations/simulations.jld",
