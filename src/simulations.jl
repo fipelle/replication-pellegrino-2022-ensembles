@@ -52,7 +52,9 @@ end
 Run simulations.
 """
 function run_simulations(
-    no_simulations :: Int64
+    T              :: Int64,
+    no_simulations :: Int64,
+    noise_factor   :: Float64
 )
 
     # Memory pre-allocation for output
@@ -74,7 +76,7 @@ function run_simulations(
         for (index, nlin_weight) in enumerate(collect(0:0.1:1))
             
             cycle, target = simulate_data(
-                100,
+                T,
                 1.0,
                 nlin_coeff_1,
                 nlin_coeff_2,
@@ -85,6 +87,11 @@ function run_simulations(
             # Estimation sample
             X = cycle[1:end-1];
             y = target[2:end];
+
+            # Is the cycle observed with some measurement error?
+            if noise_factor > 0
+                X .+= noise_factor .* randn(T-1);
+            end
 
             # OLS error
             ols = (X'*X)\X'*y;
@@ -120,10 +127,18 @@ function run_simulations(
     return ols_errors, rf_errors;
 end
 
+# Run simulations
+ols_errors_T100_noise0, rf_errors_T100_noise0 = run_simulations(100, 1000, 0);
+ols_errors_T100_noise1, rf_errors_T100_noise1 = run_simulations(100, 1000, 1);
+ols_errors_T200_noise0, rf_errors_T200_noise0 = run_simulations(200, 1000, 0);
+ols_errors_T200_noise1, rf_errors_T200_noise1 = run_simulations(200, 1000, 1);
+
 # Save output to disk
 save("./simulations/simulations.jld",
     Dict(
-        "ols_errors" => ols_errors,
-        "rf_errors" => rf_errors,
+        "T100_noise0" => (ols_errors_T100_noise0, rf_errors_T100_noise0),
+        "T100_noise1" => (ols_errors_T100_noise1, rf_errors_T100_noise1),
+        "T200_noise0" => (ols_errors_T200_noise0, rf_errors_T200_noise0),
+        "T200_noise1" => (ols_errors_T200_noise1, rf_errors_T200_noise1)
     )
 );
