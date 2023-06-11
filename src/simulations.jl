@@ -46,7 +46,9 @@ end
 
 """
     run_simulations(
-        no_simulations :: Int64
+        T              :: Int64,
+        no_simulations :: Int64,
+        noise_factor   :: Float64
     )
 
 Run simulations.
