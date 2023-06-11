@@ -2,7 +2,6 @@
 using Distributed;
 using FileIO, JLD;
 using DecisionTree, Distributions, LinearAlgebra, Random, Statistics;
-using Infiltrator;
 
 """
     simulate_data(
@@ -93,7 +92,6 @@ function run_simulations(
 
             # Is the cycle observed with some measurement error?
             if noise_factor > 0
-                @infiltrate # check noise inputation
                 X .+= noise_factor .* randn(T-1);
             end
 
