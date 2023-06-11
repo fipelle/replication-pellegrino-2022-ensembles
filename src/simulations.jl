@@ -35,7 +35,7 @@ function simulate_data(
     for t=3:T+burnin
         
         # Cycle value for time t
-        cycle[t] = 1.419*cycle[t-1] -0.544*cycle[t-2] + 0.0201*randn(); # parameters from Clark (1987, table 2)
+        cycle[t] = 1.53*cycle[t-1] -0.59*cycle[t-2] + 0.0074*randn(); # parameters from Clark (1987, table 1) to resemble something akin to the business cycle
         @infiltrate
 
         # Target value for time t
@@ -68,7 +68,7 @@ function run_simulations(
     ols_errors = zeros(11);
     rf_errors = zeros(11, 2); # (no nlin_weight x max_depths)
     
-    @infiltrate
+    #@infiltrate
 
     for simulation in collect(1:no_simulations)
         
@@ -82,7 +82,7 @@ function run_simulations(
         nlin_coeff_2 = rand(TruncatedNormal(0, 1, 0, +Inf));
         
         # Loop over non linear weight
-        for (index, nlin_weight) in enumerate(collect(0:0.1:1))
+        for (index, nlin_weight) in enumerate(collect(0.0:0.1:1.0))
             
             @infiltrate
 
