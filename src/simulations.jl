@@ -10,7 +10,6 @@ using DecisionTree, LinearAlgebra, Random, Statistics;
         nlin_coeff_1 :: Float64,
         nlin_coeff_2 :: Float64,
         nlin_weight  :: Float64;
-        seed         :: Int64 = 1,
         burnin       :: Int64 = 100,
     )
 
@@ -22,7 +21,6 @@ function simulate_data(
     nlin_coeff_1 :: Float64,
     nlin_coeff_2 :: Float64,
     nlin_weight  :: Float64;
-    seed         :: Int64 = 1,
     burnin       :: Int64 = 100,
 )
 
@@ -50,12 +48,12 @@ end
 ols_errors = zeros(11);
 rf_errors = zeros(11, 2);
 
-# Set random seed
-Random.seed!(1);
-
 for simulation in collect(1:1000)
     
     @info("Simulation $(simulation)");
+
+    # Set random seed
+    Random.seed!(1);
 
     # Draw parameters
     nlin_coeff_1 = rand(TruncatedNormal(0, 1, -Inf, 0));
@@ -71,7 +69,6 @@ for simulation in collect(1:1000)
             +0.15,
             nlin_weight,
             burnin=100,
-            seed=simulation
         );
 
         # Estimation sample
