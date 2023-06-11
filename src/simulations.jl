@@ -68,7 +68,7 @@ function run_simulations(
         @info("Simulation $(simulation)");
 
         # Set random seed
-        Random.seed!(1);
+        Random.seed!(simulation);
 
         # Draw parameters
         nlin_coeff_1 = rand(TruncatedNormal(0, 1, -Inf, 0));
