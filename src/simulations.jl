@@ -44,66 +44,81 @@ function simulate_data(
     return cycle[burnin+1:end], target[burnin+1:end];
 end
 
-# Memory pre-allocation for output
-ols_errors = zeros(11);
-rf_errors = zeros(11, 2);
+"""
+    run_simulations(
+        no_simulations :: Int64
+    )
 
-for simulation in collect(1:1000)
-    
-    @info("Simulation $(simulation)");
+Run simulations.
+"""
+function run_simulations(
+    no_simulations :: Int64
+)
 
-    # Set random seed
-    Random.seed!(1);
+    # Memory pre-allocation for output
+    ols_errors = zeros(11);
+    rf_errors = zeros(11, 2);
 
-    # Draw parameters
-    nlin_coeff_1 = rand(TruncatedNormal(0, 1, -Inf, 0));
-    nlin_coeff_2 = rand(TruncatedNormal(0, 1, 0, +Inf));
-    
-    # Loop over non linear weight
-    for (index, nlin_weight) in enumerate(collect(0:0.1:1))
+    for simulation in collect(1:no_simulations)
         
-        cycle, target = simulate_data(
-            100,
-            1.0,
-            nlin_coeff_1,
-            nlin_coeff_2,
-            nlin_weight,
-            burnin=100,
-        );
+        @info("Simulation $(simulation)");
 
-        # Estimation sample
-        X = cycle[1:end-1];
-        y = target[2:end];
+        # Set random seed
+        Random.seed!(1);
 
-        # OLS error
-        ols = (X'*X)\X'*y;
-        ols_iis_fc = ols*X;
-        ols_errors[index] += mean((y-ols_iis_fc).^2);
+        # Draw parameters
+        nlin_coeff_1 = rand(TruncatedNormal(0, 1, -Inf, 0));
+        nlin_coeff_2 = rand(TruncatedNormal(0, 1, 0, +Inf));
+        
+        # Loop over non linear weight
+        for (index, nlin_weight) in enumerate(collect(0:0.1:1))
+            
+            cycle, target = simulate_data(
+                100,
+                1.0,
+                nlin_coeff_1,
+                nlin_coeff_2,
+                nlin_weight,
+                burnin=100,
+            );
 
-        #=
-        Tree ensemble error
-        - for max tree depth 1, 2 and 3
-        - with a large number of constituent trees
-        =#
+            # Estimation sample
+            X = cycle[1:end-1];
+            y = target[2:end];
 
-        for max_depth=[1,2]
+            # OLS error
+            ols = (X'*X)\X'*y;
+            ols_iis_fc = ols*X;
+            ols_errors[index] += mean((y-ols_iis_fc).^2);
 
-            # Model instance
-            rf_instance = RandomForestRegressor(rng=simulation, n_trees=1000, partial_sampling=1.0, n_subfeatures=1, max_depth=max_depth);
+            #=
+            Tree ensemble error
+            - for max tree depth 1, 2 and 3
+            - with a large number of constituent trees
+            =#
 
-            # Fit
-            DecisionTree.fit!(rf_instance, X[:,:], y);
+            for max_depth=[1,2]
 
-            # Compute error
-            rf_iis_fc = DecisionTree.predict(rf_instance, X[:,:]);
-            rf_errors[index, max_depth] += mean((y-rf_iis_fc).^2); # WARNING: indexing over max_depth is fine as long as there aren't breaks or jumps in the grid
+                # Model instance
+                rf_instance = RandomForestRegressor(rng=simulation, n_trees=1000, partial_sampling=1.0, n_subfeatures=1, max_depth=max_depth);
+
+                # Fit
+                DecisionTree.fit!(rf_instance, X[:,:], y);
+
+                # Compute error
+                rf_iis_fc = DecisionTree.predict(rf_instance, X[:,:]);
+                rf_errors[index, max_depth] += mean((y-rf_iis_fc).^2); # WARNING: indexing over max_depth is fine as long as there aren't breaks or jumps in the grid
+            end
         end
     end
-end
 
-# Average over simulations
-ols_errors ./= 1000;
-rf_errors ./= 1000;
+    # Average over simulations
+    ols_errors ./= no_simulations;
+    rf_errors ./= no_simulations;
+
+    # Return output
+    return ols_errors, rf_errors;
+end
 
 # Save output to disk
 save("./simulations/simulations.jld",
