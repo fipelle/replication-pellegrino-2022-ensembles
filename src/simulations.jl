@@ -1,7 +1,8 @@
 # Libraries
 using Distributed;
 using FileIO, JLD;
-using DecisionTree, LinearAlgebra, Random, Statistics;
+using DecisionTree, Distributions, LinearAlgebra, Random, Statistics;
+using Infiltrator;
 
 """
     simulate_data(
@@ -28,16 +29,20 @@ function simulate_data(
     cycle = zeros(T+burnin);
     target = zeros(T+burnin);
     
+    @infiltrate
+    
     # Loop over time
     for t=3:T+burnin
         
         # Cycle value for time t
         cycle[t] = 1.419*cycle[t-1] -0.544*cycle[t-2] + 0.0201*randn(); # parameters from Clark (1987, table 2)
-        
+        @infiltrate
+
         # Target value for time t
         nlin_threshold = cycle[t-1] <= 0;
         target[t] += nlin_weight*(nlin_coeff_1*nlin_threshold + nlin_coeff_2*(1-nlin_threshold));
         target[t] += (1-nlin_weight)*(lin_coeff*cycle[t-1]);
+        @infiltrate
     end
 
     # Return output
@@ -61,7 +66,9 @@ function run_simulations(
 
     # Memory pre-allocation for output
     ols_errors = zeros(11);
-    rf_errors = zeros(11, 2);
+    rf_errors = zeros(11, 2); # (no nlin_weight x max_depths)
+    
+    @infiltrate
 
     for simulation in collect(1:no_simulations)
         
@@ -77,6 +84,8 @@ function run_simulations(
         # Loop over non linear weight
         for (index, nlin_weight) in enumerate(collect(0:0.1:1))
             
+            @infiltrate
+
             cycle, target = simulate_data(
                 T,
                 1.0,
@@ -130,10 +139,10 @@ function run_simulations(
 end
 
 # Run simulations
-ols_errors_T100_noise0, rf_errors_T100_noise0 = run_simulations(100, 1000, 0);
-ols_errors_T100_noise1, rf_errors_T100_noise1 = run_simulations(100, 1000, 1);
-ols_errors_T200_noise0, rf_errors_T200_noise0 = run_simulations(200, 1000, 0);
-ols_errors_T200_noise1, rf_errors_T200_noise1 = run_simulations(200, 1000, 1);
+ols_errors_T100_noise0, rf_errors_T100_noise0 = run_simulations(100, 1000, 0.0);
+ols_errors_T100_noise1, rf_errors_T100_noise1 = run_simulations(100, 1000, 1.0);
+ols_errors_T200_noise0, rf_errors_T200_noise0 = run_simulations(200, 1000, 0.0);
+ols_errors_T200_noise1, rf_errors_T200_noise1 = run_simulations(200, 1000, 1.0);
 
 # Save output to disk
 save("./simulations/simulations.jld",
