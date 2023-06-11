@@ -1,9 +1,7 @@
 # Libraries
 using Distributed;
-@everywhere using MessyTimeSeriesOptim;
-@everywhere include("./get_real_time_datasets.jl");
-using CSV, FileIO, JLD;
-using DecisionTree, Random, LinearAlgebra, MessyTimeSeries, Statistics;
+using FileIO, JLD;
+using DecisionTree, LinearAlgebra, Random, Statistics;
 
 """
     simulate_data(
@@ -101,6 +99,10 @@ for simulation in collect(1:1000)
         end
     end
 end
+
+# Average over simulations
+ols_errors ./= 1000;
+rf_errors ./= 1000;
 
 # Save output to disk
 save("./simulations/simulations.jld",
