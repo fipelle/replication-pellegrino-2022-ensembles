@@ -26,9 +26,6 @@ function simulate_data(
     burnin       :: Int64 = 100,
 )
 
-    # Set random seed
-    Random.seed!(seed);
-
     # Pre-allocate memory for output
     cycle = zeros(T+burnin);
     target = zeros(T+burnin);
@@ -53,10 +50,17 @@ end
 ols_errors = zeros(11);
 rf_errors = zeros(11, 2);
 
+# Set random seed
+Random.seed!(1);
+
 for simulation in collect(1:1000)
     
     @info("Simulation $(simulation)");
 
+    # Draw parameters
+    nlin_coeff_1 = rand(TruncatedNormal(0, 1, -Inf, 0));
+    nlin_coeff_2 = rand(TruncatedNormal(0, 1, 0, +Inf));
+    
     # Loop over non linear weight
     for (index, nlin_weight) in enumerate(collect(0:0.1:1))
         
