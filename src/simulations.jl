@@ -28,7 +28,7 @@ function simulate_data(
     # Pre-allocate memory for output
     cycle = zeros(T+burnin);
     target = zeros(T+burnin);
-        
+    
     # Loop over time
     for t=3:T+burnin
         
