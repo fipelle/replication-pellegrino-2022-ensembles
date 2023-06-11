@@ -73,8 +73,8 @@ function run_simulations(
         Random.seed!(simulation);
 
         # Draw parameters
-        nlin_coeff_1 = rand(TruncatedNormal(0, 1, -Inf, 0));
-        nlin_coeff_2 = rand(TruncatedNormal(0, 1, 0, +Inf));
+        nlin_coeff_1 = rand(Uniform(0, -0.1));
+        nlin_coeff_2 = rand(Uniform(0, +0.1));
         
         # Loop over non linear weight
         for (index, nlin_weight) in enumerate(collect(0.0:0.1:1.0))
