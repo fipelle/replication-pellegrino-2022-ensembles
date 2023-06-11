@@ -28,21 +28,17 @@ function simulate_data(
     # Pre-allocate memory for output
     cycle = zeros(T+burnin);
     target = zeros(T+burnin);
-    
-    @infiltrate
-    
+        
     # Loop over time
     for t=3:T+burnin
         
         # Cycle value for time t
         cycle[t] = 1.53*cycle[t-1] -0.59*cycle[t-2] + 0.0074*randn(); # parameters from Clark (1987, table 1) to resemble something akin to the business cycle
-        @infiltrate
 
         # Target value for time t
         nlin_threshold = cycle[t-1] <= 0;
         target[t] += nlin_weight*(nlin_coeff_1*nlin_threshold + nlin_coeff_2*(1-nlin_threshold));
         target[t] += (1-nlin_weight)*(lin_coeff*cycle[t-1]);
-        @infiltrate
     end
 
     # Return output
