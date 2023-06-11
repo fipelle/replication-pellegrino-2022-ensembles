@@ -50,3 +50,5 @@ fig = @pgf TikzPicture(GroupPlot(
     axs...),
     raw"\node[yshift=-1.75cm] at ($(group c1r2.south)!0.5!(group c2r2.south)$) {\ref{grouplegend}};"
 );
+
+pgfsave("./img/simulations.pdf", fig);
