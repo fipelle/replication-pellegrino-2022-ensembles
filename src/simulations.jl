@@ -64,8 +64,6 @@ function run_simulations(
     ols_errors = zeros(11);
     rf_errors = zeros(11, 2); # (no nlin_weight x max_depths)
     
-    #@infiltrate
-
     for simulation in collect(1:no_simulations)
         
         @info("Simulation $(simulation)");
@@ -80,8 +78,6 @@ function run_simulations(
         # Loop over non linear weight
         for (index, nlin_weight) in enumerate(collect(0.0:0.1:1.0))
             
-            @infiltrate
-
             cycle, target = simulate_data(
                 T,
                 1.0,
@@ -97,6 +93,7 @@ function run_simulations(
 
             # Is the cycle observed with some measurement error?
             if noise_factor > 0
+                @infiltrate # check noise inputation
                 X .+= noise_factor .* randn(T-1);
             end
 
