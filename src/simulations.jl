@@ -65,8 +65,10 @@ function run_simulations(
     
     for simulation in collect(1:no_simulations)
         
-        @info("Simulation $(simulation)");
-
+        if mod(simulation, 50) == 0
+            @info("Simulation $(simulation)");
+        end
+        
         # Set random seed
         Random.seed!(simulation);
 
