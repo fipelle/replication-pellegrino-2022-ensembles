@@ -65,8 +65,8 @@ for simulation in collect(1:1000)
         cycle, target = simulate_data(
             100,
             1.0,
-            -0.20,
-            +0.15,
+            nlin_coeff_1,
+            nlin_coeff_2,
             nlin_weight,
             burnin=100,
         );
