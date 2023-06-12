@@ -28,9 +28,9 @@ for (index, simulation_set) in enumerate(["T100_noise0", "T200_noise0", "T100_no
         {
             grid   = "both",
             xlabel = raw"Strenght of non-linear links",
-            ylabel = raw"In-sample error",
+            ylabel = raw"Out-of-sample error",
             xmin=0, xmax=1.0,
-            ymin=0, ymax=0.6,
+            ymin=0, ymax=2e-3,
             legend_style=legend_style_content,
             title=titles[index]
         },
