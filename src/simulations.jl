@@ -105,7 +105,7 @@ function run_simulations(
             y_oos = target[estim_length+1:end];
 
             # OLS error
-            ols = (X'*X)\X'*y;
+            ols = (X_estim'*X_estim)\X_estim'*y_estim;
             ols_oos_fc = ols*X;
             ols_errors[index] += mean((y-ols_oos_fc).^2);
 
@@ -121,7 +121,7 @@ function run_simulations(
                 rf_instance = RandomForestRegressor(rng=simulation, n_trees=1000, partial_sampling=1.0, n_subfeatures=1, max_depth=max_depth);
 
                 # Fit
-                DecisionTree.fit!(rf_instance, X[:,:], y);
+                DecisionTree.fit!(rf_instance, X_estim[:,:], y_estim);
 
                 # Compute error
                 rf_oos_fc = DecisionTree.predict(rf_instance, X[:,:]);
