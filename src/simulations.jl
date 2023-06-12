@@ -95,15 +95,19 @@ function run_simulations(
             if noise_factor > 0
                 cycle .+= noise_factor .* randn(T);
             end
-            
+
             # Estimation sample
-            X = cycle[1:end-1];
-            y = target[2:end];
+            X_estim = cycle[1:estim_length-1];
+            y_estim = target[2:estim_length];
+
+            # OOS sample
+            X_oos = cycle[estim_length:end-1];
+            y_oos = target[estim_length+1:end];
 
             # OLS error
             ols = (X'*X)\X'*y;
-            ols_iis_fc = ols*X;
-            ols_errors[index] += mean((y-ols_iis_fc).^2);
+            ols_oos_fc = ols*X;
+            ols_errors[index] += mean((y-ols_oos_fc).^2);
 
             #=
             Tree ensemble error
@@ -120,8 +124,8 @@ function run_simulations(
                 DecisionTree.fit!(rf_instance, X[:,:], y);
 
                 # Compute error
-                rf_iis_fc = DecisionTree.predict(rf_instance, X[:,:]);
-                rf_errors[index, max_depth] += mean((y-rf_iis_fc).^2); # WARNING: indexing over max_depth is fine as long as there aren't breaks or jumps in the grid
+                rf_oos_fc = DecisionTree.predict(rf_instance, X[:,:]);
+                rf_errors[index, max_depth] += mean((y-rf_oos_fc).^2); # WARNING: indexing over max_depth is fine as long as there aren't breaks or jumps in the grid
             end
         end
     end
