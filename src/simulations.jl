@@ -107,7 +107,7 @@ function run_simulations(
             # OLS error
             ols = (X_estim'*X_estim)\X_estim'*y_estim;
             ols_oos_fc = ols*X_oos;
-            ols_errors[index] += mean((y-ols_oos_fc).^2);
+            ols_errors[index] += mean((y_oos-ols_oos_fc).^2);
 
             #=
             Tree ensemble error
@@ -125,7 +125,7 @@ function run_simulations(
 
                 # Compute error
                 rf_oos_fc = DecisionTree.predict(rf_instance, X_oos[:,:]);
-                rf_errors[index, max_depth] += mean((y-rf_oos_fc).^2); # WARNING: indexing over max_depth is fine as long as there aren't breaks or jumps in the grid
+                rf_errors[index, max_depth] += mean((y_oos-rf_oos_fc).^2); # WARNING: indexing over max_depth is fine as long as there aren't breaks or jumps in the grid
             end
         end
     end
