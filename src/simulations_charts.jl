@@ -36,7 +36,8 @@ for (index, simulation_set) in enumerate(["T100_noise0", "T200_noise0", "T100_no
         },
         Plot({color=c1, style={"thick"}}, Table(x=collect(0.0:0.1:1.0), y=ols_errors)),
         Plot({color=c2, style={"thick"}}, Table(x=collect(0.0:0.1:1.0), y=rf_errors[:,1])),
-        ifelse(index==1, raw"\legend{Factor regression, Factor ensemble}", "");
+        Plot({color=c3, style={"thick"}}, Table(x=collect(0.0:0.1:1.0), y=rf_errors[:,2])),
+        ifelse(index==1, raw"\legend{OLS, Bagging (max depth=1), Bagging (max depth=2)}", "");
     );
 end
 
