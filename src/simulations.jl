@@ -59,6 +59,9 @@ function run_simulations(
     noise_factor   :: Float64
 )
 
+    # Estimation sample length
+    estim_length = fld(T, 2);
+
     # Memory pre-allocation for output
     ols_errors = zeros(11);
     rf_errors = zeros(11, 2); # (no nlin_weight x max_depths)
@@ -88,14 +91,14 @@ function run_simulations(
                 burnin=100,
             );
 
+            # Is the cycle observed with some measurement error?
+            if noise_factor > 0
+                cycle .+= noise_factor .* randn(T);
+            end
+            
             # Estimation sample
             X = cycle[1:end-1];
             y = target[2:end];
-
-            # Is the cycle observed with some measurement error?
-            if noise_factor > 0
-                X .+= noise_factor .* randn(T-1);
-            end
 
             # OLS error
             ols = (X'*X)\X'*y;
